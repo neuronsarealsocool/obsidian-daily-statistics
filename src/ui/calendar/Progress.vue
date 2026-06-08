@@ -110,7 +110,10 @@ const weekGoalChange = (data: number) => {
 </script>
 
 <template>
-  <div class="progress">
+  <div
+    class="daily-statistics-progress"
+    style="background: var(--background-primary) !important; background-color: var(--background-primary) !important; background-image: none !important;"
+  >
     <p class="goals">
       {{ $t(
       "dailyGoals"
@@ -165,5 +168,19 @@ const weekGoalChange = (data: number) => {
 </template>
 
 <style scoped>
+.daily-statistics-progress {
+  margin: 20px;
+  background: var(--background-primary) !important;
+  background-color: var(--background-primary) !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
 
+.daily-statistics-progress .goals,
+.daily-statistics-progress :deep(.el-progress) {
+  background: var(--background-primary) !important;
+  background-color: var(--background-primary) !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
 </style>

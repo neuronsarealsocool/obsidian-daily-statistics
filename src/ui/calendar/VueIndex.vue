@@ -66,12 +66,44 @@ watch(() => store.getters.weekStart, () => {
 <template>
 
   <el-config-provider :key="componentKey">
-
-    <Calendar />
-    <Progress v-if="enablePlan" />
+    <div class="daily-statistics-calendar-root">
+      <Calendar />
+      <div
+        v-if="enablePlan"
+        class="daily-statistics-progress-shell"
+        style="background: var(--background-primary) !important; background-color: var(--background-primary) !important; background-image: none !important;"
+      >
+        <Progress />
+      </div>
+    </div>
 
   </el-config-provider>
 </template>
 
 
-<style scoped></style>
+<style scoped>
+.daily-statistics-calendar-root,
+.daily-statistics-progress-shell,
+.daily-statistics-progress-shell :deep(.daily-statistics-progress) {
+  background: var(--background-primary) !important;
+  background-color: var(--background-primary) !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+
+.daily-statistics-progress-shell::before,
+.daily-statistics-progress-shell::after,
+.daily-statistics-progress-shell :deep(.daily-statistics-progress::before),
+.daily-statistics-progress-shell :deep(.daily-statistics-progress::after),
+.daily-statistics-progress-shell :deep(.goals),
+.daily-statistics-progress-shell :deep(.goals::before),
+.daily-statistics-progress-shell :deep(.goals::after),
+.daily-statistics-progress-shell :deep(.el-progress),
+.daily-statistics-progress-shell :deep(.el-progress::before),
+.daily-statistics-progress-shell :deep(.el-progress::after) {
+  background: var(--background-primary) !important;
+  background-color: var(--background-primary) !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+</style>

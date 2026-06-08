@@ -67,6 +67,7 @@ export class CalendarView extends ItemView {
   };
 
   async onOpen() {
+    this.containerEl.addClass("daily-statistics-calendar-view");
 
     const enablePlan = this.plugin.settings.enablePlan;
     store.commit("updateEnablePlan", enablePlan);
@@ -132,6 +133,7 @@ export class CalendarView extends ItemView {
       this._vueApp.unmount();
     }
     this.containerEl.empty();
+    this.containerEl.removeClass("daily-statistics-calendar-view");
 
     DailyStatisticsDataManagerInstance.removeDataSaveListener(this.dailyStatisticsDataSaveListenerImpl);
     if (this.intervalId) {

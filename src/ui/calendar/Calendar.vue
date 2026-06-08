@@ -174,11 +174,6 @@ const isGoalAchieved = (day: string) => {
 }
 
 
-.progress {
-  margin: 20px;
-}
-
-
 .goals {
   /*让子项居中*/
   display: flex;
@@ -256,6 +251,24 @@ https://github.com/yefengr/obsidian-daily-statistics/issues/7
 /* 设置日历背景透明 */
 .el-calendar {
   background-color: transparent !important;
+}
+
+.daily-statistics-calendar-view .daily-statistics-progress-shell,
+.daily-statistics-calendar-view .daily-statistics-progress-shell::before,
+.daily-statistics-calendar-view .daily-statistics-progress-shell::after,
+.daily-statistics-calendar-view .daily-statistics-progress,
+.daily-statistics-calendar-view .daily-statistics-progress::before,
+.daily-statistics-calendar-view .daily-statistics-progress::after,
+.daily-statistics-calendar-view .daily-statistics-progress .goals,
+.daily-statistics-calendar-view .daily-statistics-progress .goals::before,
+.daily-statistics-calendar-view .daily-statistics-progress .goals::after,
+.daily-statistics-calendar-view .daily-statistics-progress .el-progress,
+.daily-statistics-calendar-view .daily-statistics-progress .el-progress::before,
+.daily-statistics-calendar-view .daily-statistics-progress .el-progress::after {
+  background: var(--background-primary) !important;
+  background-color: var(--background-primary) !important;
+  background-image: none !important;
+  box-shadow: none !important;
 }
 
 </style>
