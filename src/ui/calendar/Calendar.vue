@@ -16,7 +16,11 @@
     </template>
   </el-dialog>
 
-  <el-calendar v-model="day" >
+  <el-calendar
+    v-model="day"
+    class="daily-statistics-calendar"
+    style="--el-calendar-selected-bg-color: transparent; --el-fill-color-blank: transparent;"
+  >
     <template #date-cell="{ data }">
       <div @dblclick="setNum(data.day)" class="div-container">
         <div class="flex-centered" :class="{ 'goal-achieved': isGoalAchieved(data.day) }">
@@ -253,6 +257,36 @@ https://github.com/yefengr/obsidian-daily-statistics/issues/7
   background-color: transparent !important;
 }
 
+.daily-statistics-calendar {
+  --el-calendar-selected-bg-color: transparent !important;
+  --el-fill-color-blank: transparent !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+.daily-statistics-calendar .el-calendar__body,
+.daily-statistics-calendar .el-calendar-table,
+.daily-statistics-calendar .el-calendar-table tr,
+.daily-statistics-calendar .el-calendar-table th,
+.daily-statistics-calendar .el-calendar-table td,
+.daily-statistics-calendar .el-calendar-table td.current,
+.daily-statistics-calendar .el-calendar-table td.is-selected,
+.daily-statistics-calendar .el-calendar-table td.is-today,
+.daily-statistics-calendar .el-calendar-table .el-calendar-day,
+.daily-statistics-calendar .el-calendar-table .el-calendar-day:hover,
+.daily-statistics-calendar .el-calendar-table td.current .el-calendar-day,
+.daily-statistics-calendar .el-calendar-table td.is-selected .el-calendar-day,
+.daily-statistics-calendar .el-calendar-table td.is-today .el-calendar-day,
+.daily-statistics-calendar .el-calendar-day > .div-container,
+.daily-statistics-calendar .el-calendar-day > .div-container > .flex-centered,
+.daily-statistics-calendar .el-calendar-day > .div-container > .flex-centered2,
+.daily-statistics-calendar .el-calendar-day > .div-container > .goal-achieved {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
 .daily-statistics-calendar-view .el-calendar,
 .daily-statistics-calendar-view .el-calendar__body,
 .daily-statistics-calendar-view .el-calendar-table,
@@ -263,12 +297,14 @@ https://github.com/yefengr/obsidian-daily-statistics/issues/7
 .daily-statistics-calendar-view .el-calendar-table td.is-selected,
 .daily-statistics-calendar-view .el-calendar-table td.is-today,
 .daily-statistics-calendar-view .el-calendar-table .el-calendar-day,
+.daily-statistics-calendar-view .el-calendar-table .el-calendar-day:hover,
 .daily-statistics-calendar-view .el-calendar-table td.current .el-calendar-day,
 .daily-statistics-calendar-view .el-calendar-table td.is-selected .el-calendar-day,
 .daily-statistics-calendar-view .el-calendar-table td.is-today .el-calendar-day,
 .daily-statistics-calendar-view .el-calendar-day > .div-container,
 .daily-statistics-calendar-view .el-calendar-day > .div-container > .flex-centered,
-.daily-statistics-calendar-view .el-calendar-day > .div-container > .flex-centered2 {
+.daily-statistics-calendar-view .el-calendar-day > .div-container > .flex-centered2,
+.daily-statistics-calendar-view .el-calendar-day > .div-container > .goal-achieved {
   background: transparent !important;
   background-color: transparent !important;
   background-image: none !important;
