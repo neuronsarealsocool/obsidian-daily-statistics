@@ -265,8 +265,8 @@ https://github.com/yefengr/obsidian-daily-statistics/issues/7
 .daily-statistics-calendar-view .daily-statistics-progress .el-progress,
 .daily-statistics-calendar-view .daily-statistics-progress .el-progress::before,
 .daily-statistics-calendar-view .daily-statistics-progress .el-progress::after {
-  background: var(--background-primary) !important;
-  background-color: var(--background-primary) !important;
+  background: transparent !important;
+  background-color: transparent !important;
   background-image: none !important;
   box-shadow: none !important;
 }

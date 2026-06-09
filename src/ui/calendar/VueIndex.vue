@@ -71,7 +71,7 @@ watch(() => store.getters.weekStart, () => {
       <div
         v-if="enablePlan"
         class="daily-statistics-progress-shell"
-        style="background: var(--background-primary) !important; background-color: var(--background-primary) !important; background-image: none !important; padding: 0 !important;"
+        style="background: transparent !important; background-color: transparent !important; background-image: none !important; padding: 0 !important;"
       >
         <Progress />
       </div>
@@ -86,8 +86,8 @@ watch(() => store.getters.weekStart, () => {
 .daily-statistics-progress-shell,
 .daily-statistics-progress-shell :deep(.daily-statistics-progress) {
   margin: 0 !important;
-  background: var(--background-primary) !important;
-  background-color: var(--background-primary) !important;
+  background: transparent !important;
+  background-color: transparent !important;
   background-image: none !important;
   box-shadow: none !important;
 }
@@ -102,8 +102,8 @@ watch(() => store.getters.weekStart, () => {
 .daily-statistics-progress-shell :deep(.el-progress),
 .daily-statistics-progress-shell :deep(.el-progress::before),
 .daily-statistics-progress-shell :deep(.el-progress::after) {
-  background: var(--background-primary) !important;
-  background-color: var(--background-primary) !important;
+  background: transparent !important;
+  background-color: transparent !important;
   background-image: none !important;
   box-shadow: none !important;
 }

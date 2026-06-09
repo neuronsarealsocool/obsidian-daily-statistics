@@ -112,7 +112,7 @@ const weekGoalChange = (data: number) => {
 <template>
   <div
     class="daily-statistics-progress"
-    style="background: var(--background-primary) !important; background-color: var(--background-primary) !important; background-image: none !important; padding: 20px !important;"
+    style="background: transparent !important; background-color: transparent !important; background-image: none !important; padding: 20px !important;"
   >
     <p class="goals">
       {{ $t(
@@ -171,16 +171,16 @@ const weekGoalChange = (data: number) => {
 .daily-statistics-progress {
   margin: 0 !important;
   padding: 20px !important;
-  background: var(--background-primary) !important;
-  background-color: var(--background-primary) !important;
+  background: transparent !important;
+  background-color: transparent !important;
   background-image: none !important;
   box-shadow: none !important;
 }
 
 .daily-statistics-progress .goals,
 .daily-statistics-progress :deep(.el-progress) {
-  background: var(--background-primary) !important;
-  background-color: var(--background-primary) !important;
+  background: transparent !important;
+  background-color: transparent !important;
   background-image: none !important;
   box-shadow: none !important;
 }
