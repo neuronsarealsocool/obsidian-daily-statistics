@@ -259,10 +259,10 @@ https://github.com/yefengr/obsidian-daily-statistics/issues/7
 /* 设置日历背景透明 */
 .goal-achieved-icon {
   color: #67C23A !important;
-  font-size: 12px;
-  margin-left: 4px;
+  font-size: 16px;
+  margin-left: 5px;
   margin-right: 0;
-  vertical-align: -1px;
+  vertical-align: -3px;
 }
 
 .el-calendar {
