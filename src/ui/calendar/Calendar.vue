@@ -127,7 +127,7 @@ const isGoalAchieved = (day: string) => {
 
 <style>
 .el-calendar-table .is-selected {
-  color: #1989fa;
+  color: inherit !important;
 }
 
 .div-container {
@@ -246,7 +246,7 @@ https://github.com/yefengr/obsidian-daily-statistics/issues/7
 }
 
 .goal-achieved {
-  color: #67C23A;
+  color: inherit !important;
   /* Element Plus 的成功绿色 */
 }
 
@@ -287,6 +287,13 @@ https://github.com/yefengr/obsidian-daily-statistics/issues/7
   background-image: none !important;
 }
 
+.daily-statistics-calendar .el-calendar-table .is-selected,
+.daily-statistics-calendar .el-calendar-table .is-today,
+.daily-statistics-calendar .goal-achieved,
+.daily-statistics-calendar .goal-achieved p {
+  color: inherit !important;
+}
+
 .daily-statistics-calendar-view .el-calendar,
 .daily-statistics-calendar-view .el-calendar__body,
 .daily-statistics-calendar-view .el-calendar-table,
@@ -308,6 +315,13 @@ https://github.com/yefengr/obsidian-daily-statistics/issues/7
   background: transparent !important;
   background-color: transparent !important;
   background-image: none !important;
+}
+
+.daily-statistics-calendar-view .el-calendar-table .is-selected,
+.daily-statistics-calendar-view .el-calendar-table .is-today,
+.daily-statistics-calendar-view .goal-achieved,
+.daily-statistics-calendar-view .goal-achieved p {
+  color: inherit !important;
 }
 
 .daily-statistics-calendar-view .daily-statistics-progress-shell,
