@@ -253,6 +253,27 @@ https://github.com/yefengr/obsidian-daily-statistics/issues/7
   background-color: transparent !important;
 }
 
+.daily-statistics-calendar-view .el-calendar,
+.daily-statistics-calendar-view .el-calendar__body,
+.daily-statistics-calendar-view .el-calendar-table,
+.daily-statistics-calendar-view .el-calendar-table tr,
+.daily-statistics-calendar-view .el-calendar-table th,
+.daily-statistics-calendar-view .el-calendar-table td,
+.daily-statistics-calendar-view .el-calendar-table td.current,
+.daily-statistics-calendar-view .el-calendar-table td.is-selected,
+.daily-statistics-calendar-view .el-calendar-table td.is-today,
+.daily-statistics-calendar-view .el-calendar-table .el-calendar-day,
+.daily-statistics-calendar-view .el-calendar-table td.current .el-calendar-day,
+.daily-statistics-calendar-view .el-calendar-table td.is-selected .el-calendar-day,
+.daily-statistics-calendar-view .el-calendar-table td.is-today .el-calendar-day,
+.daily-statistics-calendar-view .el-calendar-day > .div-container,
+.daily-statistics-calendar-view .el-calendar-day > .div-container > .flex-centered,
+.daily-statistics-calendar-view .el-calendar-day > .div-container > .flex-centered2 {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
 .daily-statistics-calendar-view .daily-statistics-progress-shell,
 .daily-statistics-calendar-view .daily-statistics-progress-shell::before,
 .daily-statistics-calendar-view .daily-statistics-progress-shell::after,
