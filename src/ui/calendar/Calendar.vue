@@ -26,6 +26,9 @@
         <div class="flex-centered" :class="{ 'goal-achieved': isGoalAchieved(data.day) }">
           <p>
             {{ data.date.getDate() }}
+            <el-icon v-if="isGoalAchieved(data.day)" class="goal-achieved-icon">
+              <Check />
+            </el-icon>
           </p>
         </div>
 
@@ -52,6 +55,7 @@ import "element-plus/theme-chalk/dark/css-vars.css";
 import { Notice } from "obsidian";
 import { useI18n } from "vue-i18n";
 import dayjs from "dayjs";
+import { Check } from "@element-plus/icons-vue";
 
 
 // 日期
@@ -253,6 +257,14 @@ https://github.com/yefengr/obsidian-daily-statistics/issues/7
 
 
 /* 设置日历背景透明 */
+.goal-achieved-icon {
+  color: #67C23A !important;
+  font-size: 12px;
+  margin-left: 4px;
+  margin-right: 0;
+  vertical-align: -1px;
+}
+
 .el-calendar {
   background-color: transparent !important;
 }
