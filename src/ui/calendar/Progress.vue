@@ -45,6 +45,16 @@ const targetWordContOfWeek = computed(() => {
 const targetWordContOfMonth = computed(() => {
   return store.getters.monthlyGoal;
 });
+const totalMonthlyWordCount = computed(() => {
+  const today = store.getters.currentDay;
+  return Object.keys(threeMonthsData.value).reduce((acc, key) => {
+    const date = dayjs(key);
+    if (date.isSame(today, "month")) {
+      acc += threeMonthsData.value[key] || 0;
+    }
+    return acc;
+  }, 0);
+});
 
 
 // 每日进度
@@ -81,14 +91,7 @@ const weekProgress = computed(() => {
 
 // 每月进度
 const monthProgress = computed(() => {
-  const today = store.getters.currentDay;
-  const monthCount = Object.keys(threeMonthsData.value).reduce((acc, key) => {
-    const date = dayjs(key);
-    if (date.isSame(today, "month")) {
-      acc += threeMonthsData.value[key] || 0;
-    }
-    return acc;
-  }, 0);
+  const monthCount = totalMonthlyWordCount.value;
   const monthGoal = targetWordContOfMonth.value;
   if (monthCount <= 0 || monthGoal == 0) {
     return 0;
@@ -163,6 +166,9 @@ const weekGoalChange = (data: number) => {
       </el-tooltip>
     </p>
     <el-progress :percentage="monthProgress" :status="monthProgress>=100 ?'success':''" />
+    <p class="goals monthly-word-count">
+      Total monthly word count: {{ totalMonthlyWordCount }}
+    </p>
   </div>
 
 </template>
@@ -183,5 +189,9 @@ const weekGoalChange = (data: number) => {
   background-color: transparent !important;
   background-image: none !important;
   box-shadow: none !important;
+}
+
+.monthly-word-count {
+  margin-bottom: 0;
 }
 </style>
