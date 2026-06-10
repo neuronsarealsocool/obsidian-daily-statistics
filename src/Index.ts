@@ -24,6 +24,7 @@ export default class DailyStatisticsPlugin extends Plugin {
   debouncedUpdate!: Debouncer<[contents: string | null, filepath: string], void>;
   private statusBarItemEl!: HTMLElement;
   calendarView!: CalendarView;
+  private dailyWordCountReplacementRunning = false;
 
   async onload() {
     await this.loadSettings();
@@ -142,6 +143,13 @@ export default class DailyStatisticsPlugin extends Plugin {
       }, 1000)
     );
 
+    this.registerInterval(
+      window.setInterval(() => {
+        this.updateDailyWordCountPlaceholders().then();
+      }, 15000)
+    );
+    this.updateDailyWordCountPlaceholders().then();
+
     // 在快速预览时，更新统计数据
     this.registerEvent(
       this.app.workspace.on("editor-change", this.onEditorChange.bind(this))
@@ -257,6 +265,46 @@ export default class DailyStatisticsPlugin extends Plugin {
   onFileOpen(file: TFile | null) {
     if (file && this.app.workspace.getActiveViewOfType(MarkdownView)) {
       this.debouncedUpdate(null, file.path);
+    }
+  }
+
+  private getDailyWordCountReplacement() {
+    const count = DailyStatisticsDataManagerInstance.currentWordCount || 0;
+    return `Total daily word count: ${count}`;
+  }
+
+  private async updateDailyWordCountPlaceholders() {
+    if (this.dailyWordCountReplacementRunning) {
+      return;
+    }
+
+    this.dailyWordCountReplacementRunning = true;
+    const placeholder = "<todaystotalwordcount>";
+    const generatedTextPattern = /Total daily word count: \d+/g;
+    const replacement = this.getDailyWordCountReplacement();
+
+    try {
+      for (const file of this.app.vault.getMarkdownFiles()) {
+        const contents = await this.app.vault.cachedRead(file);
+        generatedTextPattern.lastIndex = 0;
+
+        if (!contents.includes(placeholder) && !generatedTextPattern.test(contents)) {
+          continue;
+        }
+
+        generatedTextPattern.lastIndex = 0;
+        const updatedContents = contents
+          .replaceAll(placeholder, replacement)
+          .replace(generatedTextPattern, replacement);
+
+        if (updatedContents !== contents) {
+          await this.app.vault.modify(file, updatedContents);
+        }
+      }
+    } catch (error) {
+      console.error("updateDailyWordCountPlaceholders error", error);
+    } finally {
+      this.dailyWordCountReplacementRunning = false;
     }
   }
 }
