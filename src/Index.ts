@@ -25,6 +25,7 @@ export default class DailyStatisticsPlugin extends Plugin {
   private statusBarItemEl!: HTMLElement;
   calendarView!: CalendarView;
   private dailyWordCountReplacementRunning = false;
+  private vaultWordCountScanRunning = false;
 
   async onload() {
     await this.loadSettings();
@@ -79,6 +80,12 @@ export default class DailyStatisticsPlugin extends Plugin {
         );
 
 
+        this.scanAllMarkdownWordCounts().then();
+        this.registerInterval(
+          window.setInterval(() => {
+            this.scanAllMarkdownWordCounts().then();
+          }, 15000)
+        );
 
       })
       .catch((e) => {
@@ -125,7 +132,7 @@ export default class DailyStatisticsPlugin extends Plugin {
             return;
           }
         }
-        DailyStatisticsDataManagerInstance.updateWordCount(contents, filepath);
+        this.scanAllMarkdownWordCounts().then();
       },
       400,
       false
@@ -264,7 +271,82 @@ export default class DailyStatisticsPlugin extends Plugin {
   // 当文件被打开时统计字数
   onFileOpen(file: TFile | null) {
     if (file && this.app.workspace.getActiveViewOfType(MarkdownView)) {
-      this.debouncedUpdate(null, file.path);
+      this.scanAllMarkdownWordCounts().then();
+    }
+  }
+
+  private normalizeVaultPath(filepath: string | null | undefined) {
+    return (filepath || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+  }
+
+  private isPluginInternalFile(filepath: string) {
+    return filepath.startsWith(".obsidian/") || filepath.split("/").some(part => part.startsWith("."));
+  }
+
+  private shouldTrackStatisticsFile(filepath: string) {
+    filepath = this.normalizeVaultPath(filepath);
+    if (filepath == "") {
+      return false;
+    }
+
+    if (this.isPluginInternalFile(filepath)) {
+      return false;
+    }
+
+    const dataFile = this.normalizeVaultPath(this.settings.dataFile);
+    if (dataFile != "" && filepath == dataFile) {
+      return false;
+    }
+
+    if (this.settings.excludeFolder != null && this.settings.excludeFolder != "" && this.settings.excludeFolder != "/") {
+      const folders = this.settings.excludeFolder.split(',').map(folder => this.normalizeVaultPath(folder)).filter(folder => folder !== "");
+      const folderPatterns = folders.map(folder => `^${folder}(/|$)`);
+      const excludePattern = new RegExp(folderPatterns.join('|'));
+
+      if (filepath.match(excludePattern)) {
+        return false;
+      }
+    }
+
+    if (
+      this.settings.statisticsFolder != null &&
+      this.settings.statisticsFolder != "" &&
+      this.settings.statisticsFolder != "/"
+    ) {
+      const folders = this.settings.statisticsFolder.split(',').map(folder => this.normalizeVaultPath(folder)).filter(folder => folder !== "");
+      const folderPatterns = folders.map(folder => `^${folder}(/|$)`);
+      const includePattern = new RegExp(folderPatterns.join('|'));
+
+      if (!filepath.match(includePattern)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  private async scanAllMarkdownWordCounts() {
+    if (this.vaultWordCountScanRunning) {
+      return;
+    }
+
+    this.vaultWordCountScanRunning = true;
+    try {
+      const wordCounts: Record<string, number> = {};
+      for (const file of this.app.vault.getMarkdownFiles()) {
+        if (!this.shouldTrackStatisticsFile(file.path)) {
+          continue;
+        }
+
+        const contents = await this.app.vault.read(file);
+        wordCounts[file.path] = DailyStatisticsDataManagerInstance.getWordCount(contents);
+      }
+
+      DailyStatisticsDataManagerInstance.updateVaultWordCounts(wordCounts);
+    } catch (error) {
+      console.error("scanAllMarkdownWordCounts error", error);
+    } finally {
+      this.vaultWordCountScanRunning = false;
     }
   }
 
@@ -285,6 +367,12 @@ export default class DailyStatisticsPlugin extends Plugin {
 
     try {
       for (const file of this.app.vault.getMarkdownFiles()) {
+        const filepath = this.normalizeVaultPath(file.path);
+        const dataFile = this.normalizeVaultPath(this.settings.dataFile);
+        if (this.isPluginInternalFile(filepath) || (dataFile != "" && filepath == dataFile)) {
+          continue;
+        }
+
         const contents = await this.app.vault.cachedRead(file);
         generatedTextPattern.lastIndex = 0;
 

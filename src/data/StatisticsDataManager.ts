@@ -14,6 +14,9 @@ export interface WordCount {
 export class DailyStatisticsData {
   dayCounts: Record<string, number> = {};
   todayWordCount: Record<string, WordCount> = {};
+  vaultBaselineDate = "";
+  vaultBaselineWordCounts: Record<string, number> = {};
+  vaultLatestWordCounts: Record<string, number> = {};
   // 每周计划
   weeklyPlan: Record<string, number> = {};
   // 当日手动修改的字数
@@ -237,11 +240,18 @@ export class DailyStatisticsDataManager {
    * @param text
    */
   getWordCount(text: string) {
+    text = this.getCountableText(text);
     if (this.plugin.settings.statisticsWord) {
       return this.countTheNumberOfWords(text);
     }
     // 直接统计字数数量
     return text.length;
+  }
+
+  private getCountableText(text: string) {
+    return text
+      .replace(/Total daily word count:\s*\d+/g, "")
+      .replace(/<todaystotalwordcount>/g, "");
   }
 
   /**
@@ -297,6 +307,52 @@ export class DailyStatisticsDataManager {
       this.data.todayWordCount = {};
       this.data.todayWordCount[filepath] = { initial: curr, current: curr };
     }
+    this.updateCounts();
+  }
+
+  updateVaultWordCounts(wordCounts: Record<string, number>) {
+    this.updateDate();
+    let changed = false;
+
+    if (this.data.vaultBaselineDate !== this.today) {
+      const previousSnapshot = Object.keys(this.data.vaultLatestWordCounts || {}).length > 0
+        ? this.data.vaultLatestWordCounts
+        : wordCounts;
+
+      this.data.vaultBaselineDate = this.today;
+      this.data.vaultBaselineWordCounts = { ...previousSnapshot };
+      this.data.todayWordCount = {};
+      changed = true;
+    }
+
+    const previousLatestWordCounts = this.data.vaultLatestWordCounts || {};
+    if (Object.keys(previousLatestWordCounts).length !== Object.keys(wordCounts).length) {
+      changed = true;
+    } else {
+      for (const filepath in wordCounts) {
+        if (previousLatestWordCounts[filepath] !== wordCounts[filepath]) {
+          changed = true;
+          break;
+        }
+      }
+    }
+
+    if (!changed) {
+      return;
+    }
+
+    const nextTodayWordCount: Record<string, WordCount> = {};
+
+    for (const filepath in wordCounts) {
+      const current = wordCounts[filepath];
+      const baseline = Object.prototype.hasOwnProperty.call(this.data.vaultBaselineWordCounts, filepath)
+        ? this.data.vaultBaselineWordCounts[filepath]
+        : 0;
+      nextTodayWordCount[filepath] = { initial: baseline, current };
+    }
+
+    this.data.todayWordCount = nextTodayWordCount;
+    this.data.vaultLatestWordCounts = { ...wordCounts };
     this.updateCounts();
   }
 
