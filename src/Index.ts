@@ -280,7 +280,9 @@ export default class DailyStatisticsPlugin extends Plugin {
   }
 
   private isPluginInternalFile(filepath: string) {
-    return filepath.startsWith(".obsidian/") || filepath.split("/").some(part => part.startsWith("."));
+    return filepath.startsWith(".obsidian/")
+      || filepath.startsWith("_dev-tools/")
+      || filepath.split("/").some(part => part.startsWith("."));
   }
 
   private shouldTrackStatisticsFile(filepath: string) {
