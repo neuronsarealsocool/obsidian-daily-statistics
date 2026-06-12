@@ -265,14 +265,9 @@ export default class DailyStatisticsPlugin extends Plugin {
 
   // 在预览时更新统计字数
   onEditorChange(editor: Editor, info: MarkdownView | MarkdownFileInfo) {
-    if (info instanceof MarkdownView) {
-      const file = info.file;
-      const contents = editor.getValue();
-      if (file) {
-        this.debouncedUpdate(contents, file.path);
-      }
-    } else {
-      // console.log("onEditorChange, info is not MarkdownView");
+    const file = info.file ?? this.app.workspace.getActiveFile();
+    if (file) {
+      this.debouncedUpdate(editor.getValue(), file.path);
     }
   }
 
