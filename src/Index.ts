@@ -354,7 +354,7 @@ export default class DailyStatisticsPlugin extends Plugin {
 
   private getDailyWordCountReplacement() {
     const count = DailyStatisticsDataManagerInstance.currentWordCount || 0;
-    return `Total daily word count: ${count}`;
+    return `Total daily word count (${DailyStatisticsDataManagerInstance.today}): ${count}`;
   }
 
   private async updateDailyWordCountPlaceholders() {
@@ -364,7 +364,9 @@ export default class DailyStatisticsPlugin extends Plugin {
 
     this.dailyWordCountReplacementRunning = true;
     const placeholder = "<todaystotalwordcount>";
-    const generatedTextPattern = /Total daily word count: \d+/g;
+    const today = DailyStatisticsDataManagerInstance.today;
+    const generatedTextPattern = new RegExp(`Total daily word count \\(${today}\\): \\d+`, "g");
+    const undatedGeneratedTextPattern = /Total daily word count: \d+/g;
     const replacement = this.getDailyWordCountReplacement();
 
     try {
@@ -378,14 +380,16 @@ export default class DailyStatisticsPlugin extends Plugin {
         const contents = await this.app.vault.cachedRead(file);
         generatedTextPattern.lastIndex = 0;
 
-        if (!contents.includes(placeholder) && !generatedTextPattern.test(contents)) {
+        if (!contents.includes(placeholder) && !generatedTextPattern.test(contents) && !undatedGeneratedTextPattern.test(contents)) {
           continue;
         }
 
         generatedTextPattern.lastIndex = 0;
+        undatedGeneratedTextPattern.lastIndex = 0;
         const updatedContents = contents
           .replaceAll(placeholder, replacement)
-          .replace(generatedTextPattern, replacement);
+          .replace(generatedTextPattern, replacement)
+          .replace(undatedGeneratedTextPattern, replacement);
 
         if (updatedContents !== contents) {
           await this.app.vault.modify(file, updatedContents);

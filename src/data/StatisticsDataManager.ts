@@ -249,9 +249,7 @@ export class DailyStatisticsDataManager {
   }
 
   private getCountableText(text: string) {
-    return text
-      .replace(/Total daily word count:\s*\d+/g, "")
-      .replace(/<todaystotalwordcount>/g, "");
+    return text.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "");
   }
 
   /**
@@ -347,7 +345,7 @@ export class DailyStatisticsDataManager {
       const current = wordCounts[filepath];
       const baseline = Object.prototype.hasOwnProperty.call(this.data.vaultBaselineWordCounts, filepath)
         ? this.data.vaultBaselineWordCounts[filepath]
-        : 0;
+        : current;
       nextTodayWordCount[filepath] = { initial: baseline, current };
     }
 
