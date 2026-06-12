@@ -357,6 +357,42 @@ export class DailyStatisticsDataManager {
     this.updateCounts();
   }
 
+  updateVaultWordCount(contents: string, filepath: string) {
+    this.updateDate();
+    const current = this.getWordCount(contents);
+    const previousLatestWordCounts = this.data.vaultLatestWordCounts || {};
+
+    if (this.data.vaultBaselineDate !== this.today) {
+      this.data.vaultBaselineDate = this.today;
+      this.data.vaultBaselineWordCounts = { ...previousLatestWordCounts };
+      this.data.todayWordCount = {};
+    }
+
+    let baseline = current;
+    if (Object.prototype.hasOwnProperty.call(this.data.vaultBaselineWordCounts, filepath)) {
+      baseline = this.data.vaultBaselineWordCounts[filepath];
+    } else if (Object.prototype.hasOwnProperty.call(previousLatestWordCounts, filepath)) {
+      baseline = previousLatestWordCounts[filepath];
+    }
+
+    const previousCount = previousLatestWordCounts[filepath];
+    const previousTodayWordCount = this.data.todayWordCount[filepath];
+    if (
+      previousCount === current &&
+      previousTodayWordCount?.initial === baseline &&
+      previousTodayWordCount?.current === current
+    ) {
+      return;
+    }
+
+    this.data.todayWordCount[filepath] = { initial: baseline, current };
+    this.data.vaultLatestWordCounts = {
+      ...previousLatestWordCounts,
+      [filepath]: current,
+    };
+    this.updateCounts();
+  }
+
   updateDate() {
     this.today = dayjs().format("YYYY-MM-DD");
   }

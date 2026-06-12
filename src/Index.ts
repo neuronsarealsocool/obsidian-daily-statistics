@@ -132,7 +132,15 @@ export default class DailyStatisticsPlugin extends Plugin {
             return;
           }
         }
-        this.scanAllMarkdownWordCounts().then();
+        if (!this.shouldTrackStatisticsFile(filepath)) {
+          return;
+        }
+
+        if (contents != null) {
+          DailyStatisticsDataManagerInstance.updateVaultWordCount(contents, filepath);
+        } else {
+          this.scanAllMarkdownWordCounts().then();
+        }
       },
       400,
       false
@@ -335,12 +343,16 @@ export default class DailyStatisticsPlugin extends Plugin {
     this.vaultWordCountScanRunning = true;
     try {
       const wordCounts: Record<string, number> = {};
+      const activeMarkdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
+      const activeFilePath = activeMarkdownView?.file?.path;
       for (const file of this.app.vault.getMarkdownFiles()) {
         if (!this.shouldTrackStatisticsFile(file.path)) {
           continue;
         }
 
-        const contents = await this.app.vault.read(file);
+        const contents = file.path == activeFilePath
+          ? activeMarkdownView.editor.getValue()
+          : await this.app.vault.read(file);
         wordCounts[file.path] = DailyStatisticsDataManagerInstance.getWordCount(contents);
       }
 
