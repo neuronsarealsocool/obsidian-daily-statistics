@@ -343,9 +343,12 @@ export class DailyStatisticsDataManager {
 
     for (const filepath in wordCounts) {
       const current = wordCounts[filepath];
-      const baseline = Object.prototype.hasOwnProperty.call(this.data.vaultBaselineWordCounts, filepath)
-        ? this.data.vaultBaselineWordCounts[filepath]
-        : current;
+      let baseline = current;
+      if (Object.prototype.hasOwnProperty.call(this.data.vaultBaselineWordCounts, filepath)) {
+        baseline = this.data.vaultBaselineWordCounts[filepath];
+      } else if (Object.prototype.hasOwnProperty.call(previousLatestWordCounts, filepath)) {
+        baseline = previousLatestWordCounts[filepath];
+      }
       nextTodayWordCount[filepath] = { initial: baseline, current };
     }
 
