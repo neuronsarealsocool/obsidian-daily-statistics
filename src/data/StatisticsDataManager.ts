@@ -362,7 +362,7 @@ export class DailyStatisticsDataManager {
     this.updateCounts();
   }
 
-  updateVaultWordCount(contents: string, filepath: string) {
+  updateVaultWordCount(contents: string, filepath: string, baselineOverride?: number) {
     this.updateDate();
     const current = this.getWordCount(contents);
     const previousLatestWordCounts = this.data.vaultLatestWordCounts || {};
@@ -373,7 +373,7 @@ export class DailyStatisticsDataManager {
       this.data.todayWordCount = {};
     }
 
-    const baseline = this.getVaultBaselineForFile(filepath, current, previousLatestWordCounts);
+    const baseline = baselineOverride ?? this.getVaultBaselineForFile(filepath, current, previousLatestWordCounts);
     this.data.vaultBaselineWordCounts[filepath] = baseline;
 
     const previousCount = previousLatestWordCounts[filepath];
@@ -410,7 +410,7 @@ export class DailyStatisticsDataManager {
       existingTodayWordCount != null &&
       existingTodayWordCount.current !== existingTodayWordCount.initial
     ) {
-      return;
+      return existingTodayWordCount.initial;
     }
 
     this.data.vaultBaselineWordCounts[filepath] = current;
@@ -420,6 +420,7 @@ export class DailyStatisticsDataManager {
       [filepath]: current,
     };
     this.updateCounts();
+    return current;
   }
 
   getVaultWordCountDebug(contents: string, filepath: string) {

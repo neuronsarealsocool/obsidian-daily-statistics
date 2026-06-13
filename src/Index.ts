@@ -27,6 +27,7 @@ export default class DailyStatisticsPlugin extends Plugin {
   calendarView!: CalendarView;
   private dailyWordCountReplacementRunning = false;
   private vaultWordCountScanRunning = false;
+  private openedFileBaselines: Record<string, number> = {};
 
   async onload() {
     await this.loadSettings();
@@ -140,7 +141,26 @@ export default class DailyStatisticsPlugin extends Plugin {
         }
 
         if (contents != null) {
-          DailyStatisticsDataManagerInstance.updateVaultWordCount(contents, filepath);
+          const diskFile = this.app.vault.getFileByPath(filepath);
+          if (!Object.prototype.hasOwnProperty.call(this.openedFileBaselines, filepath) && diskFile != null) {
+            this.app.vault.read(diskFile).then((diskContents) => {
+              const diskCount = DailyStatisticsDataManagerInstance.getWordCount(diskContents);
+              const editorCount = DailyStatisticsDataManagerInstance.getWordCount(contents);
+              this.openedFileBaselines[filepath] = Math.min(diskCount, editorCount);
+              DailyStatisticsDataManagerInstance.updateVaultWordCount(
+                contents,
+                filepath,
+                this.openedFileBaselines[filepath]
+              );
+            });
+            return;
+          }
+
+          DailyStatisticsDataManagerInstance.updateVaultWordCount(
+            contents,
+            filepath,
+            this.openedFileBaselines[filepath]
+          );
         } else {
           this.scanAllMarkdownWordCounts().then();
         }
@@ -336,7 +356,7 @@ export default class DailyStatisticsPlugin extends Plugin {
       ? activeMarkdownView.editor.getValue()
       : await this.app.vault.read(file);
 
-    DailyStatisticsDataManagerInstance.prepareVaultWordCountBaseline(contents, file.path);
+    this.openedFileBaselines[file.path] = DailyStatisticsDataManagerInstance.prepareVaultWordCountBaseline(contents, file.path);
   }
 
   private normalizeVaultPath(filepath: string | null | undefined) {
