@@ -343,12 +343,8 @@ export class DailyStatisticsDataManager {
 
     for (const filepath in wordCounts) {
       const current = wordCounts[filepath];
-      let baseline = current;
-      if (Object.prototype.hasOwnProperty.call(this.data.vaultBaselineWordCounts, filepath)) {
-        baseline = this.data.vaultBaselineWordCounts[filepath];
-      } else if (Object.prototype.hasOwnProperty.call(previousLatestWordCounts, filepath)) {
-        baseline = previousLatestWordCounts[filepath];
-      }
+      const baseline = this.getVaultBaselineForFile(filepath, current, previousLatestWordCounts);
+      this.data.vaultBaselineWordCounts[filepath] = baseline;
       nextTodayWordCount[filepath] = { initial: baseline, current };
     }
 
@@ -368,12 +364,8 @@ export class DailyStatisticsDataManager {
       this.data.todayWordCount = {};
     }
 
-    let baseline = current;
-    if (Object.prototype.hasOwnProperty.call(this.data.vaultBaselineWordCounts, filepath)) {
-      baseline = this.data.vaultBaselineWordCounts[filepath];
-    } else if (Object.prototype.hasOwnProperty.call(previousLatestWordCounts, filepath)) {
-      baseline = previousLatestWordCounts[filepath];
-    }
+    const baseline = this.getVaultBaselineForFile(filepath, current, previousLatestWordCounts);
+    this.data.vaultBaselineWordCounts[filepath] = baseline;
 
     const previousCount = previousLatestWordCounts[filepath];
     const previousTodayWordCount = this.data.todayWordCount[filepath];
@@ -391,6 +383,26 @@ export class DailyStatisticsDataManager {
       [filepath]: current,
     };
     this.updateCounts();
+  }
+
+  private getVaultBaselineForFile(
+    filepath: string,
+    current: number,
+    previousLatestWordCounts: Record<string, number>
+  ) {
+    if (Object.prototype.hasOwnProperty.call(this.data.vaultBaselineWordCounts, filepath)) {
+      return this.data.vaultBaselineWordCounts[filepath];
+    }
+
+    if (Object.prototype.hasOwnProperty.call(this.data.todayWordCount, filepath)) {
+      return this.data.todayWordCount[filepath].initial;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(previousLatestWordCounts, filepath)) {
+      return previousLatestWordCounts[filepath];
+    }
+
+    return current;
   }
 
   updateDate() {
