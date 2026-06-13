@@ -342,7 +342,16 @@ export class DailyStatisticsDataManager {
     const nextTodayWordCount: Record<string, WordCount> = {};
 
     for (const filepath in wordCounts) {
-      const current = wordCounts[filepath];
+      let current = wordCounts[filepath];
+      const existingTodayWordCount = this.data.todayWordCount[filepath];
+      if (
+        existingTodayWordCount != null &&
+        existingTodayWordCount.current > current &&
+        existingTodayWordCount.current > existingTodayWordCount.initial
+      ) {
+        current = existingTodayWordCount.current;
+        wordCounts[filepath] = current;
+      }
       const baseline = this.getVaultBaselineForFile(filepath, current, previousLatestWordCounts);
       this.data.vaultBaselineWordCounts[filepath] = baseline;
       nextTodayWordCount[filepath] = { initial: baseline, current };
