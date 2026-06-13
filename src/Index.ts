@@ -4,6 +4,7 @@ import {
   Editor,
   type MarkdownFileInfo,
   MarkdownView,
+  Notice,
   Plugin,
   TFile,
   type WorkspaceLeaf,
@@ -186,6 +187,14 @@ export default class DailyStatisticsPlugin extends Plugin {
         this.activateView();
       },
     });
+
+    this.addCommand({
+      id: "debug-active-word-count",
+      name: "Debug active word count",
+      callback: async () => {
+        await this.debugActiveWordCount();
+      },
+    });
   }
 
   // // 自定义方法，通过 workspace API 检查视图类型是否已经加载
@@ -280,6 +289,32 @@ export default class DailyStatisticsPlugin extends Plugin {
         this.scanAllMarkdownWordCounts().then();
       });
     }
+  }
+
+  private async debugActiveWordCount() {
+    const activeMarkdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
+    const file = activeMarkdownView?.file ?? this.app.workspace.getActiveFile();
+    if (file == null) {
+      new Notice("Daily Statistics: no active markdown file");
+      return;
+    }
+
+    const contents = activeMarkdownView?.file?.path == file.path
+      ? activeMarkdownView.editor.getValue()
+      : await this.app.vault.read(file);
+    const debugInfo = DailyStatisticsDataManagerInstance.getVaultWordCountDebug(contents, file.path);
+    console.log("Daily Statistics active word count debug", debugInfo);
+    new Notice(
+      [
+        `Daily Statistics debug: ${debugInfo.filepath}`,
+        `tracked: ${this.shouldTrackStatisticsFile(file.path)}`,
+        `current: ${debugInfo.current}`,
+        `baseline: ${debugInfo.baseline}`,
+        `today contribution: ${debugInfo.todayContribution}`,
+        `total today: ${debugInfo.currentTotal}`,
+      ].join("\n"),
+      15000
+    );
   }
 
   private async prepareActiveFileBaseline() {
