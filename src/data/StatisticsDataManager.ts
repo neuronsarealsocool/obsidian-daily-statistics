@@ -385,6 +385,34 @@ export class DailyStatisticsDataManager {
     this.updateCounts();
   }
 
+  prepareVaultWordCountBaseline(contents: string, filepath: string) {
+    this.updateDate();
+    const current = this.getWordCount(contents);
+    const previousLatestWordCounts = this.data.vaultLatestWordCounts || {};
+
+    if (this.data.vaultBaselineDate !== this.today) {
+      this.data.vaultBaselineDate = this.today;
+      this.data.vaultBaselineWordCounts = { ...previousLatestWordCounts };
+      this.data.todayWordCount = {};
+    }
+
+    const existingTodayWordCount = this.data.todayWordCount[filepath];
+    if (
+      existingTodayWordCount != null &&
+      existingTodayWordCount.current !== existingTodayWordCount.initial
+    ) {
+      return;
+    }
+
+    this.data.vaultBaselineWordCounts[filepath] = current;
+    this.data.todayWordCount[filepath] = { initial: current, current };
+    this.data.vaultLatestWordCounts = {
+      ...previousLatestWordCounts,
+      [filepath]: current,
+    };
+    this.updateCounts();
+  }
+
   private getVaultBaselineForFile(
     filepath: string,
     current: number,

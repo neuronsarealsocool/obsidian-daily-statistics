@@ -80,7 +80,9 @@ export default class DailyStatisticsPlugin extends Plugin {
         );
 
 
-        this.scanAllMarkdownWordCounts().then();
+        this.prepareActiveFileBaseline().then(() => {
+          this.scanAllMarkdownWordCounts().then();
+        });
         this.registerInterval(
           window.setInterval(() => {
             this.scanAllMarkdownWordCounts().then();
@@ -274,8 +276,32 @@ export default class DailyStatisticsPlugin extends Plugin {
   // 当文件被打开时统计字数
   onFileOpen(file: TFile | null) {
     if (file && this.app.workspace.getActiveViewOfType(MarkdownView)) {
-      this.scanAllMarkdownWordCounts().then();
+      this.prepareFileBaseline(file).then(() => {
+        this.scanAllMarkdownWordCounts().then();
+      });
     }
+  }
+
+  private async prepareActiveFileBaseline() {
+    const activeFile = this.app.workspace.getActiveFile();
+    if (activeFile == null) {
+      return;
+    }
+
+    await this.prepareFileBaseline(activeFile);
+  }
+
+  private async prepareFileBaseline(file: TFile) {
+    if (!this.shouldTrackStatisticsFile(file.path)) {
+      return;
+    }
+
+    const activeMarkdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
+    const contents = activeMarkdownView?.file?.path == file.path
+      ? activeMarkdownView.editor.getValue()
+      : await this.app.vault.read(file);
+
+    DailyStatisticsDataManagerInstance.prepareVaultWordCountBaseline(contents, file.path);
   }
 
   private normalizeVaultPath(filepath: string | null | undefined) {
