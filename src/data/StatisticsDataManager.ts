@@ -32,6 +32,7 @@ export class DailyStatisticsDataManager {
   plugin!: DailyStatisticsPlugin;  // 修改类型为 DailyStatisticsPlugin
 
   loadingData = false;
+  private readonly backupFileName = "data.backup.json";
 
 
   /**
@@ -68,6 +69,13 @@ export class DailyStatisticsDataManager {
         await this.plugin.loadData()
       );
       // 移除配置相关的属性
+      if (Object.keys(this.data.dayCounts || {}).length === 0) {
+        const backupData = await this.loadBackupData();
+        if (backupData != null && Object.keys(backupData.dayCounts || {}).length > 0) {
+          this.data = Object.assign(new DailyStatisticsData(), backupData);
+          await this.plugin.saveData(this.data);
+        }
+      }
       this.removeProperties(this.data, new DailyStatisticsSettings());
     } else {
       // 循环5次
@@ -185,6 +193,7 @@ export class DailyStatisticsDataManager {
         }
         Object.assign(data, this.data);
         await this.plugin.saveData(data);
+        await this.saveBackupData(data);
       }
       this.dataSynchronTime = Date.now();
 
@@ -192,6 +201,39 @@ export class DailyStatisticsDataManager {
       this.afterDataSave();
     } catch (error) {
       console.error("保存统计数据出错：", error);
+    }
+  }
+
+  private getBackupFilePath(): string | null {
+    const pluginDir = this.plugin.manifest.dir;
+    if (pluginDir == null || pluginDir == "") {
+      return null;
+    }
+    return `${pluginDir}/${this.backupFileName}`;
+  }
+
+  private async loadBackupData(): Promise<DailyStatisticsData | null> {
+    try {
+      const backupPath = this.getBackupFilePath();
+      if (backupPath == null || !(await this.app.vault.adapter.exists(backupPath))) {
+        return null;
+      }
+      return JSON.parse(await this.app.vault.adapter.read(backupPath));
+    } catch (error) {
+      console.error("load daily statistics backup error:", error);
+      return null;
+    }
+  }
+
+  private async saveBackupData(data: unknown) {
+    try {
+      const backupPath = this.getBackupFilePath();
+      if (backupPath == null) {
+        return;
+      }
+      await this.app.vault.adapter.write(backupPath, JSON.stringify(data));
+    } catch (error) {
+      console.error("save daily statistics backup error:", error);
     }
   }
 

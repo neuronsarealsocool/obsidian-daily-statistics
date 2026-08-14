@@ -17,6 +17,8 @@ src/main.js
 
 # obsidian
 data.json
+data.backup.json
+data.restored-*.json
 
 # Exclude macOS Finder (System Explorer) View States
 .DS_Store
