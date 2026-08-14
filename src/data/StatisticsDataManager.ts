@@ -305,6 +305,11 @@ export class DailyStatisticsDataManager {
   }
 
   updateCounts() {
+    for (const filepath of Object.keys(this.data.todayWordCount)) {
+      if (this.plugin.isTemplateFile(filepath)) {
+        delete this.data.todayWordCount[filepath];
+      }
+    }
 
     this.currentWordCount = Object.values(this.data.todayWordCount)
       .map((wordCount) => Math.max(0, (wordCount.current || 0) - (wordCount.initial || 0)))

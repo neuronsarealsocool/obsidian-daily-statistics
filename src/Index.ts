@@ -92,6 +92,10 @@ export default class DailyStatisticsPlugin extends Plugin {
           return;
         }
 
+        if (this.isTemplateFile(filepath)) {
+          return;
+        }
+
         // 排除文件夹
         if (this.settings.excludeFolder != null && this.settings.excludeFolder != "" && this.settings.excludeFolder != "/") {
           // 支持多个文件夹排除，使用逗号分隔
@@ -240,6 +244,40 @@ export default class DailyStatisticsPlugin extends Plugin {
     await this.saveData(data);
   }
 
+  private normalizePath(path: string): string {
+    return path.trim().replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  }
+
+  private isPathInFolder(filepath: string, folder: string): boolean {
+    return filepath === folder || filepath.startsWith(`${folder}/`);
+  }
+
+  private getTemplateFolders(): string[] {
+    const folders = new Set<string>(["templates", "template"]);
+    const templaterSettings = (this.app as unknown as {
+      plugins?: { plugins?: Record<string, { settings?: { templates_folder?: string } }> };
+    }).plugins?.plugins?.["templater-obsidian"]?.settings;
+    const templaterFolder = this.normalizePath(templaterSettings?.templates_folder ?? "");
+    if (templaterFolder) {
+      folders.add(templaterFolder);
+    }
+    return [...folders];
+  }
+
+  isTemplateFile(filepath: string): boolean {
+    const normalizedPath = this.normalizePath(filepath).toLowerCase();
+    if (normalizedPath === "") {
+      return false;
+    }
+    const segments = normalizedPath.split("/");
+    if (segments.some((segment) => segment === "template" || segment === "templates")) {
+      return true;
+    }
+    return this.getTemplateFolders()
+      .map((folder) => folder.toLowerCase())
+      .some((folder) => this.isPathInFolder(normalizedPath, folder));
+  }
+
   // 在预览时更新统计字数
   onEditorChange(editor: Editor, info: MarkdownView | MarkdownFileInfo) {
     if (info instanceof MarkdownView) {
@@ -256,6 +294,10 @@ export default class DailyStatisticsPlugin extends Plugin {
   // 当文件被打开时统计字数
   onFileOpen(file: TFile | null) {
     if (file && this.app.workspace.getActiveViewOfType(MarkdownView)) {
+      const isNewEmptyFile = file.stat.size === 0 && Date.now() - file.stat.ctime < 30_000;
+      if (isNewEmptyFile) {
+        return;
+      }
       this.debouncedUpdate(null, file.path);
     }
   }
