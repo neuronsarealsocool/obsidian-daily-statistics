@@ -6,29 +6,50 @@ on:
       - "*"
 
 jobs:
-  build:
+  release:
     runs-on: ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20.x"
+          cache: pnpm
 
       - name: Build plugin
         run: |
-          npm install
-          npm run build
+          pnpm install --frozen-lockfile
+          pnpm run type-check
+          pnpm run build
+
+      - name: Package full folder
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+          zip_name="obsidian-daily-statistics-ai-ready-full-folder-${tag}.zip"
+          mkdir -p release/obsidian-daily-statistics
+          rsync -a \
+            --exclude='.git' \
+            --exclude='node_modules' \
+            --exclude='data.json' \
+            --exclude='obsidian-daily-statistics-test' \
+            ./ release/obsidian-daily-statistics/
+          (cd release && zip -r "../${zip_name}" obsidian-daily-statistics)
 
       - name: Create release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           tag="${GITHUB_REF#refs/tags/}"
+          zip_name="obsidian-daily-statistics-ai-ready-full-folder-${tag}.zip"
 
           gh release create "$tag" \
             --title="$tag" \
             --draft \
-            main.js manifest.json styles.css
+            main.js manifest.json styles.css "$zip_name"
