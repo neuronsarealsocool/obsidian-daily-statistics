@@ -33,6 +33,7 @@ export class DailyStatisticsDataManager {
 
   loadingData = false;
   private readonly backupFileName = "data.backup.json";
+  private readonly restoredBackupFileName = "data.restored-2026-08-14.json";
 
 
   /**
@@ -212,13 +213,26 @@ export class DailyStatisticsDataManager {
     return `${pluginDir}/${this.backupFileName}`;
   }
 
+  private getRestoredBackupFilePath(): string | null {
+    const pluginDir = this.plugin.manifest.dir;
+    if (pluginDir == null || pluginDir == "") {
+      return null;
+    }
+    return `${pluginDir}/${this.restoredBackupFileName}`;
+  }
+
   private async loadBackupData(): Promise<DailyStatisticsData | null> {
     try {
-      const backupPath = this.getBackupFilePath();
-      if (backupPath == null || !(await this.app.vault.adapter.exists(backupPath))) {
-        return null;
+      for (const backupPath of [this.getBackupFilePath(), this.getRestoredBackupFilePath()]) {
+        if (backupPath == null || !(await this.app.vault.adapter.exists(backupPath))) {
+          continue;
+        }
+        const backupData = JSON.parse(await this.app.vault.adapter.read(backupPath));
+        if (backupData != null && Object.keys(backupData.dayCounts || {}).length > 0) {
+          return backupData;
+        }
       }
-      return JSON.parse(await this.app.vault.adapter.read(backupPath));
+      return null;
     } catch (error) {
       console.error("load daily statistics backup error:", error);
       return null;
@@ -227,6 +241,9 @@ export class DailyStatisticsDataManager {
 
   private async saveBackupData(data: unknown) {
     try {
+      if (Object.keys((data as DailyStatisticsData).dayCounts || {}).length === 0) {
+        return;
+      }
       const backupPath = this.getBackupFilePath();
       if (backupPath == null) {
         return;
