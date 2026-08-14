@@ -23,6 +23,7 @@
           <p>
             {{ data.date.getDate() }}
           </p>
+          <span v-if="isGoalAchieved(data.day)" class="goal-check">✓</span>
         </div>
 
         <div class="flex-centered2" :class="{ 'goal-achieved': isGoalAchieved(data.day) }">
@@ -256,6 +257,17 @@ https://github.com/yefengr/obsidian-daily-statistics/issues/7
 /* 设置日历背景透明 */
 .el-calendar {
   background-color: transparent !important;
+}
+
+.el-calendar-day .goal-achieved {
+  color: var(--text-normal);
+}
+
+.goal-check {
+  margin-left: 8px;
+  color: #67C23A;
+  font-size: 18px;
+  line-height: 1;
 }
 
 </style>

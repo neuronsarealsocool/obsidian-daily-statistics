@@ -126,7 +126,7 @@ const weekGoalChange = (data: number) => {
         </el-icon>
       </el-tooltip>
     </p>
-    <el-progress :percentage="dayProgress" :status="dayProgress>=100 ?'success':''" />
+    <el-progress :percentage="dayProgress" />
     <p class="goals">
       {{ $t(
       "weeklyGoals"
@@ -145,7 +145,7 @@ const weekGoalChange = (data: number) => {
       <SetValue @set-value="weekGoalChange" :default-data="targetWordContOfWeek" />
 
     </p>
-    <el-progress :percentage="weekProgress" :status="weekProgress>=100 ?'success':''" />
+    <el-progress :percentage="weekProgress" />
     <p class="goals">
       {{ $t("monthlyGoals") }}{{ targetWordContOfMonth }}
       <el-tooltip
@@ -159,11 +159,53 @@ const weekGoalChange = (data: number) => {
         </el-icon>
       </el-tooltip>
     </p>
-    <el-progress :percentage="monthProgress" :status="monthProgress>=100 ?'success':''" />
+    <el-progress :percentage="monthProgress" />
   </div>
 
 </template>
 
 <style scoped>
+.progress {
+  margin: 92px 30px 0;
+  background: transparent;
+}
 
+.goals {
+  display: flex;
+  align-items: center;
+  margin: 0 0 22px;
+  color: var(--text-normal);
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.progress :deep(.el-progress) {
+  display: flex;
+  align-items: center;
+  margin: 0 0 26px;
+}
+
+.progress :deep(.el-progress-bar) {
+  flex: 1;
+  padding-right: 8px;
+}
+
+.progress :deep(.el-progress-bar__outer) {
+  height: 8px !important;
+  background-color: var(--background-modifier-border);
+  border-radius: 999px;
+}
+
+.progress :deep(.el-progress-bar__inner) {
+  background-color: #409eff;
+  border-radius: 999px;
+}
+
+.progress :deep(.el-progress__text) {
+  min-width: 42px;
+  margin-left: 0;
+  color: var(--text-normal);
+  font-size: 20px !important;
+  line-height: 1;
+}
 </style>
