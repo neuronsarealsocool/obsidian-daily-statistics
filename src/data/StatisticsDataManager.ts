@@ -186,6 +186,7 @@ export class DailyStatisticsDataManager {
         }
         // console.log("saveStatisticsData, data is " + JSON.stringify(this.data));
         await this.app.vault.modify(this.file, JSON.stringify(this.data));
+        await this.saveBackupData(this.data);
       } else {
         let data = await this.plugin.loadData();
         // // // console.log("saveStatisticsData, data is " + JSON.stringify(data));

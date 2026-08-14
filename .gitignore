@@ -19,6 +19,7 @@ src/main.js
 data.json
 data.backup.json
 data.restored-*.json
+statistics-data.json
 
 # Exclude macOS Finder (System Explorer) View States
 .DS_Store
