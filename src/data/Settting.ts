@@ -6,7 +6,7 @@ export class DailyStatisticsSettings {
   excludeFolder = "";
 
   // 统计单词，用于英文场景
-  statisticsWord = false;
+  statisticsWord = true;
   // 开启计划
   enablePlan = true;
   // 一周开始时间
