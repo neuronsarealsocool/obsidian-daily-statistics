@@ -79,28 +79,17 @@ export class DailyStatisticsDataManager {
       }
       this.removeProperties(this.data, new DailyStatisticsSettings());
     } else {
-      // 循环5次
-      for (let i = 0; i < 10; i++) {
-        this.file = this.app.vault.getFileByPath(this.filePath);
-        if (this.file != null) {
-          // console.log("dataFile ready");
-          break;
-        }
-        // console.log("waiting for dataFile…… ");
-        // 等待3秒
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-      }
-      this.file = this.app.vault.getFileByPath(this.filePath);
-      if (this.file == null) {
+      // Custom data files can live outside the indexed note tree.
+      if (!(await this.app.vault.adapter.exists(this.filePath))) {
         console.log("create dataFile " + this.filePath);
-        this.file = await this.app.vault.create(
+        await this.app.vault.adapter.write(
           this.filePath,
           JSON.stringify(new DailyStatisticsData())
         );
       }
       this.data = Object.assign(
         new DailyStatisticsData(),
-        await JSON.parse(await this.app.vault.read(this.file))
+        await JSON.parse(await this.app.vault.adapter.read(this.filePath))
       );
       // console.log("loadStatisticsData, data is " + JSON.stringify(this.data));
     }
@@ -178,14 +167,8 @@ export class DailyStatisticsDataManager {
       }
       this.updateDate();
       if (this.filePath != null && this.filePath != "") {
-        if (this.file == null) {
-          this.file = await this.app.vault.create(
-            this.filePath,
-            JSON.stringify(this.data)
-          );
-        }
         // console.log("saveStatisticsData, data is " + JSON.stringify(this.data));
-        await this.app.vault.modify(this.file, JSON.stringify(this.data));
+        await this.app.vault.adapter.write(this.filePath, JSON.stringify(this.data));
         await this.saveBackupData(this.data);
       } else {
         let data = await this.plugin.loadData();
