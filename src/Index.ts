@@ -238,12 +238,6 @@ export default class DailyStatisticsPlugin extends Plugin {
     return `Total daily word count (${date}): ${count}`;
   }
 
-  stripDailyTotalWordCountText(contents: string): string {
-    return contents
-      .replace(/<todaystotalwordcount>/g, "")
-      .replace(/Total daily word count \(\d{4}-\d{2}-\d{2}\): -?\d+/g, "");
-  }
-
   private replaceDailyTotalWordCountText(contents: string): string {
     const today = dayjs().format("YYYY-MM-DD");
     return contents
