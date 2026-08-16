@@ -280,7 +280,9 @@ export class DailyStatisticsDataManager {
       }
       contents = await this.app.vault.read(tempFile);
     }
-    const curr = this.getWordCount(contents);
+    const curr = this.getWordCount(
+      this.plugin.stripDailyTotalWordCountText(contents)
+    );
     // console.log("updateWordCount", curr);
     if (Object.prototype.hasOwnProperty.call(this.data.dayCounts, this.today)) {
       if (

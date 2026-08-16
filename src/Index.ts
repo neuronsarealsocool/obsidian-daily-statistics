@@ -23,6 +23,7 @@ export default class DailyStatisticsPlugin extends Plugin {
   settings!: DailyStatisticsSettings;
   debouncedUpdate!: Debouncer<[contents: string | null, filepath: string], void>;
   private statusBarItemEl!: HTMLElement;
+  private updatingDailyTotalPlaceholders = false;
   calendarView!: CalendarView;
 
   async onload() {
@@ -62,6 +63,13 @@ export default class DailyStatisticsPlugin extends Plugin {
 
           this.openForTheFirstTime();
         }, 500);
+
+        this.updateDailyTotalWordCountPlaceholders().then();
+        this.registerInterval(
+          window.setInterval(() => {
+            this.updateDailyTotalWordCountPlaceholders().then();
+          }, 15_000)
+        );
 
 
         // 检查文件的修改时间
@@ -223,6 +231,59 @@ export default class DailyStatisticsPlugin extends Plugin {
 
     // "Reveal" the leaf in case it is in a collapsed sidebar
     workspace.revealLeaf(leaf);
+  }
+
+  private getDailyTotalWordCountText(date: string): string {
+    const count = DailyStatisticsDataManagerInstance.data.dayCounts[date] ?? 0;
+    return `Total daily word count (${date}): ${count}`;
+  }
+
+  stripDailyTotalWordCountText(contents: string): string {
+    return contents
+      .replace(/<todaystotalwordcount>/g, "")
+      .replace(/Total daily word count \(\d{4}-\d{2}-\d{2}\): -?\d+/g, "");
+  }
+
+  private replaceDailyTotalWordCountText(contents: string): string {
+    const today = dayjs().format("YYYY-MM-DD");
+    return contents
+      .replace(/<todaystotalwordcount>/g, this.getDailyTotalWordCountText(today))
+      .replace(
+        /Total daily word count \((\d{4}-\d{2}-\d{2})\): -?\d+/g,
+        (_match, date: string) => this.getDailyTotalWordCountText(date)
+      );
+  }
+
+  private async updateDailyTotalWordCountPlaceholders() {
+    if (this.updatingDailyTotalPlaceholders) {
+      return;
+    }
+
+    this.updatingDailyTotalPlaceholders = true;
+    try {
+      const files = this.app.vault
+        .getMarkdownFiles()
+        .filter((file) => !this.isTemplateFile(file.path));
+
+      for (const file of files) {
+        const contents = await this.app.vault.read(file);
+        if (
+          !contents.includes("<todaystotalwordcount>") &&
+          !contents.includes("Total daily word count (")
+        ) {
+          continue;
+        }
+
+        const updatedContents = this.replaceDailyTotalWordCountText(contents);
+        if (updatedContents !== contents) {
+          await this.app.vault.modify(file, updatedContents);
+        }
+      }
+    } catch (error) {
+      console.error("Error updating daily total word count placeholders:", error);
+    } finally {
+      this.updatingDailyTotalPlaceholders = false;
+    }
   }
 
   async loadSettings() {
