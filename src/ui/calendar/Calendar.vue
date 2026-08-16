@@ -124,7 +124,7 @@ const isGoalAchieved = (day: string) => {
 
 <style>
 .el-calendar-table .is-selected {
-  color: #1989fa;
+  color: var(--text-normal);
 }
 
 .div-container {

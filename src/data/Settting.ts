@@ -1,5 +1,5 @@
 export class DailyStatisticsSettings {
-  dataFile = ".obsidian/plugins/daily-statistics/statistics-data.json";
+  dataFile = "";
   // 需要统计字数的文件夹，如果为空，则统计全库的数据
   statisticsFolder = "";
   // 排除文件夹

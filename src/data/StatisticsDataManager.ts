@@ -32,8 +32,6 @@ export class DailyStatisticsDataManager {
   plugin!: DailyStatisticsPlugin;  // 修改类型为 DailyStatisticsPlugin
 
   loadingData = false;
-  private readonly backupFileName = "data.backup.json";
-  private readonly restoredBackupFileName = "data.restored-2026-08-14.json";
 
 
   /**
@@ -70,26 +68,30 @@ export class DailyStatisticsDataManager {
         await this.plugin.loadData()
       );
       // 移除配置相关的属性
-      if (Object.keys(this.data.dayCounts || {}).length === 0) {
-        const backupData = await this.loadBackupData();
-        if (backupData != null && Object.keys(backupData.dayCounts || {}).length > 0) {
-          this.data = Object.assign(new DailyStatisticsData(), backupData);
-          await this.plugin.saveData(this.data);
-        }
-      }
       this.removeProperties(this.data, new DailyStatisticsSettings());
     } else {
-      // Custom data files can live outside the indexed note tree.
-      if (!(await this.app.vault.adapter.exists(this.filePath))) {
+      // 循环5次
+      for (let i = 0; i < 10; i++) {
+        this.file = this.app.vault.getFileByPath(this.filePath);
+        if (this.file != null) {
+          // console.log("dataFile ready");
+          break;
+        }
+        // console.log("waiting for dataFile…… ");
+        // 等待3秒
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+      this.file = this.app.vault.getFileByPath(this.filePath);
+      if (this.file == null) {
         console.log("create dataFile " + this.filePath);
-        await this.app.vault.adapter.write(
+        this.file = await this.app.vault.create(
           this.filePath,
           JSON.stringify(new DailyStatisticsData())
         );
       }
       this.data = Object.assign(
         new DailyStatisticsData(),
-        await JSON.parse(await this.app.vault.adapter.read(this.filePath))
+        await JSON.parse(await this.app.vault.read(this.file))
       );
       // console.log("loadStatisticsData, data is " + JSON.stringify(this.data));
     }
@@ -167,9 +169,14 @@ export class DailyStatisticsDataManager {
       }
       this.updateDate();
       if (this.filePath != null && this.filePath != "") {
+        if (this.file == null) {
+          this.file = await this.app.vault.create(
+            this.filePath,
+            JSON.stringify(this.data)
+          );
+        }
         // console.log("saveStatisticsData, data is " + JSON.stringify(this.data));
-        await this.app.vault.adapter.write(this.filePath, JSON.stringify(this.data));
-        await this.saveBackupData(this.data);
+        await this.app.vault.modify(this.file, JSON.stringify(this.data));
       } else {
         let data = await this.plugin.loadData();
         // // // console.log("saveStatisticsData, data is " + JSON.stringify(data));
@@ -178,7 +185,6 @@ export class DailyStatisticsDataManager {
         }
         Object.assign(data, this.data);
         await this.plugin.saveData(data);
-        await this.saveBackupData(data);
       }
       this.dataSynchronTime = Date.now();
 
@@ -186,55 +192,6 @@ export class DailyStatisticsDataManager {
       this.afterDataSave();
     } catch (error) {
       console.error("保存统计数据出错：", error);
-    }
-  }
-
-  private getBackupFilePath(): string | null {
-    const pluginDir = this.plugin.manifest.dir;
-    if (pluginDir == null || pluginDir == "") {
-      return null;
-    }
-    return `${pluginDir}/${this.backupFileName}`;
-  }
-
-  private getRestoredBackupFilePath(): string | null {
-    const pluginDir = this.plugin.manifest.dir;
-    if (pluginDir == null || pluginDir == "") {
-      return null;
-    }
-    return `${pluginDir}/${this.restoredBackupFileName}`;
-  }
-
-  private async loadBackupData(): Promise<DailyStatisticsData | null> {
-    try {
-      for (const backupPath of [this.getBackupFilePath(), this.getRestoredBackupFilePath()]) {
-        if (backupPath == null || !(await this.app.vault.adapter.exists(backupPath))) {
-          continue;
-        }
-        const backupData = JSON.parse(await this.app.vault.adapter.read(backupPath));
-        if (backupData != null && Object.keys(backupData.dayCounts || {}).length > 0) {
-          return backupData;
-        }
-      }
-      return null;
-    } catch (error) {
-      console.error("load daily statistics backup error:", error);
-      return null;
-    }
-  }
-
-  private async saveBackupData(data: unknown) {
-    try {
-      if (Object.keys((data as DailyStatisticsData).dayCounts || {}).length === 0) {
-        return;
-      }
-      const backupPath = this.getBackupFilePath();
-      if (backupPath == null) {
-        return;
-      }
-      await this.app.vault.adapter.write(backupPath, JSON.stringify(data));
-    } catch (error) {
-      console.error("save daily statistics backup error:", error);
     }
   }
 
