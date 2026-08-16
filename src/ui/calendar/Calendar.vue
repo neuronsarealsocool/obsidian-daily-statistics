@@ -123,8 +123,13 @@ const isGoalAchieved = (day: string) => {
 
 
 <style>
-.el-calendar-table .is-selected {
-  color: var(--text-normal);
+.el-calendar-table td.is-today,
+.el-calendar-table td.is-selected,
+.el-calendar-table td.is-today .el-calendar-day,
+.el-calendar-table td.is-selected .el-calendar-day,
+.el-calendar-table td.is-today .div-container,
+.el-calendar-table td.is-selected .div-container {
+  color: var(--text-normal) !important;
 }
 
 .div-container {

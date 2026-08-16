@@ -1,6 +1,6 @@
 {
   "name": "obsidian-daily-statistics",
-  "version": "1.1.16",
+  "version": "1.1.17",
   "description": "Daily Statistics",
   "main": "main.js",
   "scripts": {
