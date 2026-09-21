@@ -244,6 +244,13 @@ export class DailyStatisticsDataManager {
     return text.length;
   }
 
+  private stripFrontmatter(text: string): string {
+    return text.replace(
+      /^(?:\uFEFF)?---[ \t]*\r?\n[\s\S]*?\r?\n(?:---|\.\.\.)[ \t]*(?:\r?\n|$)/,
+      ""
+    );
+  }
+
   /**
    * 统计单词数
    * @param text
@@ -280,7 +287,10 @@ export class DailyStatisticsDataManager {
       }
       contents = await this.app.vault.read(tempFile);
     }
-    const curr = this.getWordCount(contents);
+    const countableContents = this.stripFrontmatter(
+      this.plugin.stripDailyTotalWordCountText(contents)
+    );
+    const curr = this.getWordCount(countableContents);
     // console.log("updateWordCount", curr);
     if (Object.prototype.hasOwnProperty.call(this.data.dayCounts, this.today)) {
       if (
