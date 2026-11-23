@@ -14,6 +14,7 @@ export interface WordCount {
 export class DailyStatisticsData {
   dayCounts: Record<string, number> = {};
   todayWordCount: Record<string, WordCount> = {};
+  vaultRecountDate = "";
   // 每周计划
   weeklyPlan: Record<string, number> = {};
   // 当日手动修改的字数
@@ -280,6 +281,8 @@ export class DailyStatisticsDataManager {
   }
 
   async updateWordCount(contents: string | null, filepath: string) {
+    if (!this.loadingData || !this.plugin.shouldCountFile(filepath)) return;
+    this.ensureCountingDate();
     if (contents == null || contents.length == 0) {
       const tempFile = this.app.vault.getFileByPath(filepath);
       if (tempFile == null) {
@@ -292,20 +295,13 @@ export class DailyStatisticsDataManager {
     );
     const curr = this.getWordCount(countableContents);
     // console.log("updateWordCount", curr);
-    if (Object.prototype.hasOwnProperty.call(this.data.dayCounts, this.today)) {
-      if (
-        Object.prototype.hasOwnProperty.call(this.data.todayWordCount, filepath)
-      ) {
-        // 当前文件已有记录，则更新当前字数
-        this.data.todayWordCount[filepath].current = curr;
-      } else {
-        // 当前文件没有记录，新增记录
-        this.data.todayWordCount[filepath] = { initial: curr, current: curr };
-      }
+    if (Object.prototype.hasOwnProperty.call(this.data.todayWordCount, filepath)) {
+      this.data.todayWordCount[filepath].current = curr;
     } else {
-      // 新的一天，清空当天的记录
-      this.data.todayWordCount = {};
-      this.data.todayWordCount[filepath] = { initial: curr, current: curr };
+      this.data.todayWordCount[filepath] = {
+        initial: this.data.vaultRecountDate === this.today ? 0 : curr,
+        current: curr,
+      };
     }
     this.updateCounts();
   }
@@ -314,7 +310,56 @@ export class DailyStatisticsDataManager {
     this.today = dayjs().format("YYYY-MM-DD");
   }
 
-  updateCounts() {
+  private ensureCountingDate() {
+    const date = dayjs().format("YYYY-MM-DD");
+    if (date !== this.today) {
+      this.today = date;
+      this.data.todayWordCount = {};
+      this.data.currentManuallyModifyWordCount = 0;
+      this.data.vaultRecountDate = "";
+    }
+  }
+
+  async recountVault(stopped: () => boolean = () => false) {
+    if (!this.loadingData) return;
+    this.ensureCountingDate();
+    const date = this.today;
+    const baseline = this.data.vaultRecountDate !== date;
+    let readFailed = false;
+    const counts = new Map<string, { count: number; previous?: WordCount }>();
+    for (const file of this.app.vault.getMarkdownFiles()) {
+      if (stopped()) return;
+      if (!this.plugin.shouldCountFile(file.path)) continue;
+      const previous = this.data.todayWordCount[file.path];
+      const snapshot = previous ? { ...previous } : undefined;
+      try {
+        const text = await this.app.vault.read(file);
+        const count = this.getWordCount(this.stripFrontmatter(
+          this.plugin.stripDailyTotalWordCountText(text)
+        ));
+        counts.set(file.path, { count, previous: snapshot });
+      } catch (error) {
+        readFailed = true;
+        console.error("Error reading note for word count:", file.path, error);
+      }
+    }
+    // Discard a scan that crossed midnight or outlived the plugin.
+    if (stopped() || dayjs().format("YYYY-MM-DD") !== date || this.today !== date) return;
+    for (const [path, { count, previous }] of counts) {
+      const current = this.data.todayWordCount[path];
+      // Keep editor updates that arrived while the scan was reading files.
+      if (current?.initial !== previous?.initial || current?.current !== previous?.current) continue;
+      this.data.todayWordCount[path] = {
+        initial: current?.initial ?? (baseline ? count : 0),
+        current: count,
+      };
+    }
+    if (!readFailed) this.data.vaultRecountDate = date;
+    this.updateCounts(false);
+    await this.saveStatisticsData();
+  }
+
+  updateCounts(save = true) {
     for (const filepath of Object.keys(this.data.todayWordCount)) {
       if (this.plugin.isTemplateFile(filepath)) {
         delete this.data.todayWordCount[filepath];
@@ -328,7 +373,7 @@ export class DailyStatisticsDataManager {
     this.currentWordCount += this.data.currentManuallyModifyWordCount;
     this.data.dayCounts[this.today] = this.currentWordCount;
     // console.log("updateCounts", this.data);
-    this.saveStatisticsData().then();
+    if (save) this.saveStatisticsData().then();
   }
 
   updateCurrentWordCount(wordCount: number) {

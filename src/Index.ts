@@ -24,6 +24,8 @@ export default class DailyStatisticsPlugin extends Plugin {
   debouncedUpdate!: Debouncer<[contents: string | null, filepath: string], void>;
   private statusBarItemEl!: HTMLElement;
   private updatingDailyTotalPlaceholders = false;
+  private recountingVault = false;
+  private stopped = false;
   calendarView!: CalendarView;
 
   async onload() {
@@ -64,10 +66,12 @@ export default class DailyStatisticsPlugin extends Plugin {
           this.openForTheFirstTime();
         }, 500);
 
-        this.updateDailyTotalWordCountPlaceholders().then();
+        this.app.workspace.onLayoutReady(() => {
+          void this.recountVault();
+        });
         this.registerInterval(
           window.setInterval(() => {
-            this.updateDailyTotalWordCountPlaceholders().then();
+            void this.recountVault();
           }, 15_000)
         );
 
@@ -100,42 +104,7 @@ export default class DailyStatisticsPlugin extends Plugin {
           return;
         }
 
-        if (this.isTemplateFile(filepath)) {
-          return;
-        }
-
-        // 排除文件夹
-        if (this.settings.excludeFolder != null && this.settings.excludeFolder != "" && this.settings.excludeFolder != "/") {
-          // 支持多个文件夹排除，使用逗号分隔
-          const folders = this.settings.excludeFolder.split(',').map(folder => folder.trim()).filter(folder => folder !== "");
-
-          // 构建匹配多个文件夹的正则表达式
-          const folderPatterns = folders.map(folder => `^${folder}(/|$)`);
-          const excludePattern = new RegExp(folderPatterns.join('|'));
-
-          if (filepath.match(excludePattern)) {
-            // console.log("排除文件夹，不统计数据: " + filepath);
-            return;
-          }
-        }
-
-        if (
-          this.settings.statisticsFolder != null &&
-          this.settings.statisticsFolder != "" &&
-          this.settings.statisticsFolder != "/"
-        ) {
-          // 支持多个文件夹包含，使用逗号分隔
-          const folders = this.settings.statisticsFolder.split(',').map(folder => folder.trim()).filter(folder => folder !== "");
-
-          // 构建匹配多个文件夹的正则表达式
-          const folderPatterns = folders.map(folder => `^${folder}(/|$)`);
-          const includePattern = new RegExp(folderPatterns.join('|'));
-
-          if (!filepath.match(includePattern)) {
-            // console.log("文件路径不匹配，不统计: " + filepath);
-            return;
-          }
-        }
+        if (!this.shouldCountFile(filepath)) return;
         DailyStatisticsDataManagerInstance.updateWordCount(contents, filepath);
       },
       400,
@@ -162,6 +131,16 @@ export default class DailyStatisticsPlugin extends Plugin {
     this.registerEvent(
       this.app.workspace.on("file-open", this.onFileOpen.bind(this))
     );
+    this.registerEvent(this.app.vault.on("rename", (file, oldPath) => {
+      const counts = DailyStatisticsDataManagerInstance.data.todayWordCount;
+      for (const path of Object.keys(counts)) {
+        if (path === oldPath || path.startsWith(`${oldPath}/`)) {
+          const newPath = file.path + path.slice(oldPath.length);
+          counts[newPath] = counts[path];
+          delete counts[path];
+        }
+      }
+    }));
 
     // This adds a settings tab so the user can configure various aspects of the plugin
     this.addSettingTab(new SampleSettingTab(this.app, this));
@@ -201,6 +180,7 @@ export default class DailyStatisticsPlugin extends Plugin {
   }
 
   onunload() {
+    this.stopped = true;
     this.statusBarItemEl.remove();
     const { workspace } = this.app;
     const leaves = workspace.getLeavesOfType(Calendar_View);
@@ -236,6 +216,31 @@ export default class DailyStatisticsPlugin extends Plugin {
   private getDailyTotalWordCountText(date: string): string {
     const count = DailyStatisticsDataManagerInstance.data.dayCounts[date] ?? 0;
     return `Total daily word count (${date}): ${count}`;
+  }
+
+  private async recountVault() {
+    if (this.recountingVault || this.stopped) return;
+    this.recountingVault = true;
+    try {
+      await DailyStatisticsDataManagerInstance.recountVault(() => this.stopped);
+      if (!this.stopped) await this.updateDailyTotalWordCountPlaceholders();
+    } catch (error) {
+      console.error("Error recounting vault words:", error);
+    } finally {
+      this.recountingVault = false;
+    }
+  }
+
+  shouldCountFile(filepath: string): boolean {
+    if (this.isTemplateFile(filepath) || filepath === this.settings.dataFile) return false;
+    const matches = (setting: string) => setting.split(",")
+      .map((folder) => this.normalizePath(folder))
+      .filter(Boolean)
+      .some((folder) => this.isPathInFolder(filepath, folder));
+    const excluded = this.settings.excludeFolder;
+    if (excluded && excluded !== "/" && matches(excluded)) return false;
+    const included = this.settings.statisticsFolder;
+    return !included || included === "/" || matches(included);
   }
 
   stripDailyTotalWordCountText(contents: string): string {
