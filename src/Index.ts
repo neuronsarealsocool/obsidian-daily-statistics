@@ -72,7 +72,7 @@ export default class DailyStatisticsPlugin extends Plugin {
         this.registerInterval(
           window.setInterval(() => {
             void this.recountVault();
-          }, 15_000)
+          }, 5_000)
         );
 
 

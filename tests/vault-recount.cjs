@@ -93,3 +93,64 @@ test('cancelled scans do not save or replace the baseline', async () => {
   assert.equal(saves(), 0);
   assert.equal(manager.data.vaultRecountDate, '');
 });
+
+test('the first mobile sync after midnight counts toward today only', async () => {
+  const { manager, notes, setDate } = setup();
+  await manager.recountVault();
+  notes.set('existing.md', 'one two three');
+  await manager.recountVault();
+  setDate('2026-11-24');
+  notes.set('existing.md', 'one two three four five');
+  notes.set('mobile.md', 'new mobile note');
+  await manager.recountVault();
+  assert.equal(manager.data.dayCounts['2026-11-23'], 1);
+  assert.equal(manager.data.dayCounts['2026-11-24'], 5);
+  await manager.recountVault();
+  assert.equal(manager.currentWordCount, 5);
+});
+
+test('saving after midnight rolls the baseline before the next recount', async () => {
+  const { manager, notes, setDate } = setup();
+  await manager.recountVault();
+  notes.set('existing.md', 'one two three');
+  await manager.recountVault();
+  manager.data.currentManuallyModifyWordCount = 7;
+  manager.updateCounts(false);
+  manager.plugin.loadData = async () => ({});
+  manager.plugin.saveData = async () => {};
+  setDate('2026-11-24');
+  await Object.getPrototypeOf(manager).saveStatisticsData.call(manager);
+  assert.equal(manager.data.dayCounts['2026-11-23'], 8);
+  assert.equal(manager.data.dayCounts['2026-11-24'], 0);
+  notes.set('existing.md', 'one two three four');
+  await manager.recountVault();
+  assert.equal(manager.data.dayCounts['2026-11-24'], 1);
+});
+
+test('an editor note read crossing midnight is attributed to the new day', async () => {
+  const { manager, setDate } = setup();
+  await manager.recountVault();
+  manager.app.vault.getFileByPath = (path) => ({ path });
+  manager.app.vault.read = async () => {
+    setDate('2026-11-24');
+    return 'one two three';
+  };
+  await manager.updateWordCount(null, 'existing.md');
+  assert.equal(manager.data.dayCounts['2026-11-23'], 0);
+  assert.equal(manager.data.dayCounts['2026-11-24'], 1);
+});
+
+test('reloading yesterday\'s persisted baselines assigns synced growth to today', async () => {
+  const { manager, notes, setDate } = setup();
+  await manager.recountVault();
+  notes.set('existing.md', 'one two three');
+  await manager.recountVault();
+  const persisted = JSON.parse(JSON.stringify(manager.data));
+  setDate('2026-11-24');
+  manager.plugin.loadData = async () => persisted;
+  await manager.loadStatisticsData();
+  notes.set('existing.md', 'one two three four');
+  await manager.recountVault();
+  assert.equal(manager.data.dayCounts['2026-11-23'], 1);
+  assert.equal(manager.data.dayCounts['2026-11-24'], 1);
+});

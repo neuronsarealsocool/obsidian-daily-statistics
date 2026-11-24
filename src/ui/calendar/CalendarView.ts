@@ -117,7 +117,7 @@ export class CalendarView extends ItemView {
         this.onClose();
         this.onOpen();
       }
-    }, 1000 * 60 * 60);
+    }, 5_000);
 
 
   
@@ -134,6 +134,7 @@ export class CalendarView extends ItemView {
     this.containerEl.empty();
 
     DailyStatisticsDataManagerInstance.removeDataSaveListener(this.dailyStatisticsDataSaveListenerImpl);
+    DailyStatisticsDataManagerInstance.removeDataSyncListener(this.dailyStatisticsDataSyncListenerImpl);
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null; // 重置定时器 ID
