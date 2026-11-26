@@ -208,6 +208,12 @@ const store = createStore<StatisticsData>({
     updateDayCounts(state, dayCounts: Record<string, number>) {
       // 获取dayCounts 第一个属性的名称
       const day = Object.keys(dayCounts)[0];
+      if (DailyStatisticsDataManagerInstance.data.offlineLedger) {
+        DailyStatisticsDataManagerInstance.setDayCount(day, dayCounts[day]);
+        state.dayCounts = {...DailyStatisticsDataManagerInstance.data.dayCounts};
+        void DailyStatisticsDataManagerInstance.saveStatisticsData();
+        return;
+      }
       // 如果修改的时间是当前日期，需要单独做处理，记录在已有字数基础上，变更的数字
       if (dayjs(day).isSame(dayjs(), "day")) {
         DailyStatisticsDataManagerInstance.updateCurrentWordCount(dayCounts[day]);

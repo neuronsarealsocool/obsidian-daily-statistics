@@ -13,6 +13,14 @@ import dayjs from "dayjs";
 import "dayjs/locale/zh-cn";
 import en from "element-plus/es/locale/lang/en";
 import ElementPlus from "element-plus";
+// Explicit component CSS avoids build-time auto-import scanning on Windows paths.
+import 'element-plus/es/components/calendar/style/css';
+import 'element-plus/es/components/dialog/style/css';
+import 'element-plus/es/components/input-number/style/css';
+import 'element-plus/es/components/button/style/css';
+import 'element-plus/es/components/icon/style/css';
+import 'element-plus/es/components/progress/style/css';
+import 'element-plus/es/components/tooltip/style/css';
 import i18n from "@/lang/index"; // 多语言引入
 import VueIndex from "@/ui/calendar/VueIndex.vue";
 

@@ -6,15 +6,20 @@ const ts = require('typescript');
 
 function setup() {
   let date = '2026-11-23';
+  class TestDate extends Date {constructor(...args){super(...(args.length?args:[date+'T12:00:00+11:00']));}static now(){return new Date(date+'T12:00:00+11:00').getTime();}}
   const compiled = ts.transpileModule(fs.readFileSync('src/data/StatisticsDataManager.ts', 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   const exports = {};
   vm.runInNewContext(compiled, {
-    exports, console, setTimeout,
+    exports, console, setTimeout, Date: TestDate,
     require: (name) => {
       if (name === 'dayjs') return { default: () => ({ format: () => date }) };
       if (name === './Settting') return { DailyStatisticsSettings: class {} };
+      if (name === './mobile-journal' || name === './statistics-ledger') {
+        const dependency = {}; const source = ts.transpileModule(fs.readFileSync('src/data/'+name.slice(2)+'.ts','utf8'), {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+        vm.runInNewContext(source,{exports:dependency,console,Date:TestDate,Map,Set,require:()=>({})}); return dependency;
+      }
       throw new Error(`Unexpected dependency: ${name}`);
     },
   });
@@ -29,6 +34,7 @@ function setup() {
     stripDailyTotalWordCountText: (text) => text.replace(/<todaystotalwordcount>/g, ''),
   };
   manager.app = { vault: {
+    adapter: {exists: async()=>false},
     getMarkdownFiles: () => [...notes.keys()].map((path) => ({ path })),
     read: async (file) => notes.get(file.path),
   } };

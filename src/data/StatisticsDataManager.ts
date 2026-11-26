@@ -2,6 +2,8 @@ import { App, Plugin, TFile } from "obsidian";
 import { DailyStatisticsSettings } from "./Settting";
 import dayjs from "dayjs";
 import DailyStatisticsPlugin from "@/Index";
+import { MobileJournalReader } from './mobile-journal';
+import { StatisticsLedger, type LedgerState, fingerprint } from './statistics-ledger';
 
 export interface WordCount {
   initial: number;
@@ -12,6 +14,7 @@ export interface WordCount {
  * 统计数据
  */
 export class DailyStatisticsData {
+  offlineLedger?: LedgerState;
   dayCounts: Record<string, number> = {};
   todayWordCount: Record<string, WordCount> = {};
   vaultRecountDate = "";
@@ -23,6 +26,13 @@ export class DailyStatisticsData {
 }
 
 export class DailyStatisticsDataManager {
+  private mobileReader?: MobileJournalReader;
+  private ledgerReady = false;
+  private legacyCounts: Record<string, number> = {};
+  private ledger() {return new StatisticsLedger(this.data.offlineLedger!, text => {
+    const clean = this.stripFrontmatter(this.plugin.stripDailyTotalWordCountText(text));
+    return {hash: fingerprint(clean), count: this.getWordCount(clean)};
+  });}
   filePath = "";
   file!: TFile | null;
   today!: string;
@@ -98,6 +108,15 @@ export class DailyStatisticsDataManager {
       // console.log("loadStatisticsData, data is " + JSON.stringify(this.data));
     }
 
+    if (!this.data.offlineLedger) {
+      this.legacyCounts = Object.fromEntries(Object.entries(this.data.todayWordCount || {}).map(([p, c]) => [p, c.current]));
+      const older = (this.data as any).vaultLatestWordCounts;
+      // The older 1.1.6 fork used a different word tokenizer. Preserve its totals,
+      // but establish fresh per-note baselines instead of inventing growth from that change.
+      if (older) this.legacyCounts = {};
+      this.data.offlineLedger = StatisticsLedger.create(this.data.dayCounts);
+    }
+    this.mobileReader = new MobileJournalReader(this.app.vault.adapter);
     this.today = this.data.countingDate || this.data.vaultRecountDate ||
       dayjs().format("YYYY-MM-DD");
     this.ensureCountingDate();
@@ -294,6 +313,11 @@ export class DailyStatisticsDataManager {
       this.plugin.stripDailyTotalWordCountText(contents)
     );
     const curr = this.getWordCount(countableContents);
+    if (this.data.offlineLedger) {
+      this.ledger().observe(filepath, contents, Date.now(), 'desktop-observed', this.legacyCounts[filepath] ?? (this.ledgerReady ? 0 : undefined));
+      this.data.todayWordCount[filepath] = {initial: curr, current: curr};
+      this.updateCounts(); return;
+    }
     // console.log("updateWordCount", curr);
     if (Object.prototype.hasOwnProperty.call(this.data.todayWordCount, filepath)) {
       this.data.todayWordCount[filepath].current = curr;
@@ -323,6 +347,33 @@ export class DailyStatisticsDataManager {
   async recountVault(stopped: () => boolean = () => false) {
     if (!this.loadingData) return;
     this.ensureCountingDate();
+    if (this.data.offlineLedger) {
+      const data = this.data;
+      const records = this.mobileReader ? await this.mobileReader.readAll() : [];
+      if (stopped() || data !== this.data) return;
+      const ledger = this.ledger();
+      for (const record of records) if (this.plugin.shouldCountFile(record.path) && !ledger.state.snapshots[record.path]) {
+        const text = record.kind === 'edit' ? record.previousContent! : record.content;
+        const clean = this.stripFrontmatter(this.plugin.stripDailyTotalWordCountText(text));
+        ledger.state.snapshots[record.path] = {hash: fingerprint(clean), count: this.getWordCount(clean), time: 0};
+      }
+      ledger.import(records, path => this.plugin.shouldCountFile(path));
+      for (const file of this.app.vault.getMarkdownFiles()) {
+        if (stopped() || data !== this.data) return;
+        if (!this.plugin.shouldCountFile(file.path)) continue;
+        const prior = ledger.state.snapshots[file.path];
+        const live = this.plugin.currentEditorContent?.(file.path);
+        const text = live ?? await this.app.vault.read(file);
+        if (stopped() || data !== this.data) return;
+        if (prior !== ledger.state.snapshots[file.path]) continue; // Keep newer editor observations.
+        const rawTime = file.stat?.mtime;
+        const time = live === undefined && rawTime > 0 && rawTime <= Date.now() + 300_000 ? rawTime : Date.now();
+        ledger.observe(file.path, text, time, live === undefined ? 'file-mtime-estimate' : 'desktop-observed', this.legacyCounts[file.path] ?? (this.ledgerReady ? 0 : undefined));
+      }
+      this.ledgerReady = true;
+      this.data.vaultRecountDate = this.today;
+      this.updateCounts(false); await this.saveStatisticsData(); return;
+    }
     const date = this.today;
     const scanData = this.data;
     const baseline = this.data.vaultRecountDate !== date;
@@ -363,6 +414,12 @@ export class DailyStatisticsDataManager {
 
   updateCounts(save = true) {
     this.ensureCountingDate();
+    if (this.data.offlineLedger) {
+      this.data.dayCounts = this.ledger().totals();
+      this.currentWordCount = this.data.dayCounts[this.today] ?? 0;
+      if (save) void this.saveStatisticsData();
+      return;
+    }
     for (const filepath of Object.keys(this.data.todayWordCount)) {
       if (this.plugin.isTemplateFile(filepath)) {
         delete this.data.todayWordCount[filepath];
@@ -381,6 +438,9 @@ export class DailyStatisticsDataManager {
 
   updateCurrentWordCount(wordCount: number) {
     this.ensureCountingDate();
+    if (this.data.offlineLedger) {
+      this.setDayCount(this.today, wordCount); return;
+    }
     this.updateCounts(false);
     // 先减去旧的手动值，得到真实值
     const actualValue =
@@ -394,8 +454,26 @@ export class DailyStatisticsDataManager {
    * 重置当日统计数据
    */
   resetCurrentDayStatistics() {
+    if (this.data.offlineLedger) {this.setDayCount(dayjs().format('YYYY-MM-DD'), 0); this.updateCounts(); return;}
     this.data.todayWordCount = {};
     this.updateCounts();
+  }
+  setDayCount(day: string, value: number) {
+    if (!this.data.offlineLedger) {this.data.dayCounts[day] = value; return;}
+    const state = this.data.offlineLedger;
+    const old = state.manual[day] ?? 0;
+    const actual = this.ledger().totals()[day] ?? 0;
+    state.manual[day] = old + value - actual;
+    this.updateCounts(false);
+  }
+  renameTrackedPath(oldPath: string, newPath: string) {
+    const snapshots = this.data.offlineLedger?.snapshots;
+    if (snapshots) for (const path of Object.keys(snapshots)) if (path === oldPath || path.startsWith(oldPath + '/')) {
+      snapshots[newPath + path.slice(oldPath.length)] = snapshots[path]; delete snapshots[path];
+    }
+    for (const path of Object.keys(this.legacyCounts)) if (path === oldPath || path.startsWith(oldPath + '/')) {
+      this.legacyCounts[newPath + path.slice(oldPath.length)] = this.legacyCounts[path]; delete this.legacyCounts[path];
+    }
   }
 }
 

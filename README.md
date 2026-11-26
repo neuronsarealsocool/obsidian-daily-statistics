@@ -1,5 +1,9 @@
 # Obsidian Daily Statistics
 
+## Offline catch-up and Android recording (1.2.0)
+
+Offline note changes are reconciled when the vault opens. A persistent transition ledger preserves existing daily totals and imports writing dates from the [standalone Android Note Version Recorder](https://github.com/neuronsarealsocool/note-version-recorder). Resilio can deliver notes and journal files in either order; matching phone events correct overlapping desktop estimates instead of counting them twice. Without a journal, file modification dates are estimates. See [setup and limitations](OFFLINE-HISTORY.txt).
+
 ## 介绍
 统计每日书写的字数，并展示在日历中。
 

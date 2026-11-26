@@ -21,6 +21,7 @@ export class SampleSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     const t = i18n.global.t;
     containerEl.empty();
+    containerEl.createEl('p', {text: 'Offline catch-up is automatic. Android versions and their source dates are imported from _mobile-edit-history when Resilio delivers the recorder journal. Without a journal, net changes use the note modification date as an estimate. Edits overwritten before a recording cannot be recovered.'});
 
     new Setting(containerEl)
       .setName(t("statisticalDataStorageAddress"))

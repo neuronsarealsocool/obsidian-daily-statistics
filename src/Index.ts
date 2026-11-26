@@ -20,7 +20,7 @@ import dayjs from "dayjs";
  * 插件核心类
  */
 export default class DailyStatisticsPlugin extends Plugin {
-  settings!: DailyStatisticsSettings;
+  declare settings: DailyStatisticsSettings;
   debouncedUpdate!: Debouncer<[contents: string | null, filepath: string], void>;
   private statusBarItemEl!: HTMLElement;
   private updatingDailyTotalPlaceholders = false;
@@ -132,6 +132,7 @@ export default class DailyStatisticsPlugin extends Plugin {
       this.app.workspace.on("file-open", this.onFileOpen.bind(this))
     );
     this.registerEvent(this.app.vault.on("rename", (file, oldPath) => {
+      DailyStatisticsDataManagerInstance.renameTrackedPath(oldPath, file.path);
       const counts = DailyStatisticsDataManagerInstance.data.todayWordCount;
       for (const path of Object.keys(counts)) {
         if (path === oldPath || path.startsWith(`${oldPath}/`)) {
@@ -217,6 +218,18 @@ export default class DailyStatisticsPlugin extends Plugin {
     const count = DailyStatisticsDataManagerInstance.data.dayCounts[date] ?? 0;
     return `Total daily word count (${date}): ${count}`;
   }
+  currentEditorContent(path: string): string | undefined {
+    for (const leaf of this.app.workspace.getLeavesOfType('markdown')) {
+      const view = leaf.view as MarkdownView;
+      if (view.file?.path === path && view.editor) return view.editor.getValue();
+    }
+    return undefined;
+  }
+  offlineCatchUpStatus() {
+    const manager = DailyStatisticsDataManagerInstance, state = manager.data.offlineLedger;
+    return {ready: manager.loadingData, scanning: this.recountingVault, trackedNotes: Object.keys(state?.snapshots ?? {}).length,
+      mobileRecords: Object.keys(state?.mobile ?? {}).length, day: manager.today, count: manager.currentWordCount};
+  }
 
   private async recountVault() {
     if (this.recountingVault || this.stopped) return;
@@ -232,6 +245,7 @@ export default class DailyStatisticsPlugin extends Plugin {
   }
 
   shouldCountFile(filepath: string): boolean {
+    if (!filepath.toLowerCase().endsWith('.md') || filepath === '_mobile-edit-history' || filepath.startsWith('_mobile-edit-history/')) return false;
     if (this.isTemplateFile(filepath) || filepath === this.settings.dataFile) return false;
     const matches = (setting: string) => setting.split(",")
       .map((folder) => this.normalizePath(folder))
@@ -292,11 +306,10 @@ export default class DailyStatisticsPlugin extends Plugin {
   }
 
   async loadSettings() {
-    this.settings = Object.assign(
-      {},
-      new DailyStatisticsSettings(),
-      await this.loadData()
-    );
+    const saved = await this.loadData();
+    this.settings = new DailyStatisticsSettings();
+    for (const key of Object.keys(this.settings)) if (saved?.[key] !== undefined)
+      (this.settings as any)[key] = saved[key];
   }
 
   // 保存配置文件

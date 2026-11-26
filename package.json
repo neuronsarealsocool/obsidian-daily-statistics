@@ -1,6 +1,6 @@
 {
   "name": "obsidian-daily-statistics",
-  "version": "1.1.23",
+  "version": "1.2.0",
   "description": "Daily Statistics",
   "main": "main.js",
   "scripts": {
@@ -9,7 +9,8 @@
     "dev": "npm run lint && vite build --watch",
     "build": "vite build --mode production",
     "format": "prettier --write src/",
-    "updateVersion": "tsx scripts/updateVersion.ts"
+    "updateVersion": "tsx scripts/updateVersion.ts",
+    "test": "node --test tests/*.cjs"
   },
   "keywords": [],
   "author": "yefengr",
@@ -34,12 +35,12 @@
     "obsidian": "latest",
     "prettier": "^2.8.8",
     "tslib": "2.4.0",
-    "typescript": "5.1.6",
+    "typescript": "5.7.3",
     "unplugin-auto-import": "^0.17.6",
     "unplugin-vue-components": "^0.27.2",
     "vite": "^5.2.8",
     "vue": "^3.4.21",
-    "vue-tsc": "^2.0.10",
+    "vue-tsc": "2.2.12",
     "vuex": "^4.1.0"
   },
   "dependencies": {

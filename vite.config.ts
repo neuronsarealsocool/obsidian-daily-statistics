@@ -6,9 +6,6 @@ import { fileURLToPath, URL } from "node:url";
 import path from "path";
 import fs from "fs/promises";
 import manifest from "./manifest.json";
-import AutoImport from "unplugin-auto-import/vite";
-import Components from "unplugin-vue-components/vite";
-import { ElementPlusResolver } from "unplugin-vue-components/resolvers";
 import dotenv from "dotenv";
 import dotenvExpand from "dotenv-expand";
 
@@ -55,13 +52,7 @@ export default defineConfig(({ mode }) => {
           ]);
           console.log("复制结果到", dist);
         }
-      },
-      AutoImport({
-        resolvers: [ElementPlusResolver()]
-      }),
-      Components({
-        resolvers: [ElementPlusResolver()]
-      })
+      }
     ],
     build: {
       target: "esnext",

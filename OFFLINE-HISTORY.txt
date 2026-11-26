@@ -1,0 +1,13 @@
+Offline and Android journal support — 26 November 2026
+
+This build imports saved-note versions from a standalone Android recorder through a Resilio-synced _mobile-edit-history/v1/<device-id>/<event-id>.json journal. Each event is immutable and includes full text, the previous version for edits, source modification time, observation time and the phone's local date/timezone offset. Shared format validation is in mobile-journal.ts.
+
+All three desktop forks retry journal discovery, ignore incomplete staging files and avoid re-importing recorded event IDs. Desktop startup reconciliation recovers final synced text when no journal is available. Dates inferred without a recorder are estimates.
+
+Track Changes preserves accepted comparison baselines and stores Android source labels with imported revisions. The actual current note is reconciled after historical imports. Edit History imports historical versions as full snapshots after reconstructing existing backward patches; existing history is preserved. Its startup scan respects manual-only saving mode. Long Windows note titles are supported by short temporary filenames and hashed names only when an archive name would exceed the filesystem limit.
+
+Daily Statistics retains historical day totals, stores a persistent transition ledger, and replaces overlapping desktop estimates when matching phone events arrive. Word growth is net positive per note per day; it does not claim to measure every word typed. Existing template exclusions and manual calendar adjustments remain available. The older 1.1.6 word counter receives fresh per-note baselines on upgrade to avoid manufacturing activity from a tokenizer change.
+
+On Android, install Note Version Recorder, choose each actual shared vault root separately, grant folder/notification access, start recording and wait for the first baseline. Keep the journal folder included in Resilio and allow background battery use. A 5-second default polling interval cannot preserve saves overwritten between checks. The phone must be on and the recorder allowed to run. One recorder should watch each shared folder.
+
+Validation includes desktop regression tests, journal delivery-order and idempotence simulations, Java recorder-core tests, Android compile/DEX/signature verification, and live desktop loading in both vaults. Physical Android folder access, battery restrictions and phone-to-PC Resilio delivery still require the disposable-note check described in SETUP.txt.
