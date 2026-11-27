@@ -39,7 +39,10 @@ function setup() {
       exists: async(path)=>backupFiles.has(path),
       read: async(path)=>backupFiles.get(path),
       write: async(path,text)=>{backupFiles.set(path,text);},
-      rename: async(from,to)=>{backupFiles.set(to,backupFiles.get(from));backupFiles.delete(from);},
+      rename: async(from,to)=>{
+        if (backupFiles.has(to)) throw new Error('Destination file already exists!');
+        backupFiles.set(to,backupFiles.get(from));backupFiles.delete(from);
+      },
     },
     getMarkdownFiles: () => [...notes.keys()].map((path) => ({ path })),
     read: async (file) => notes.get(file.path),
@@ -101,6 +104,35 @@ test('goal backup restores missing targets and preserves intentional zero or cha
   assert.equal(manager.data.weeklyPlan['2026_33'],350);
   assert.equal(manager.data.weeklyPlan['2026_40'],0);
   assert.equal(manager.data.weeklyPlan['2026_41'],700);
+});
+
+test('repeated saves update existing backups and primary data through the Obsidian adapter', async () => {
+  const {manager, backupFiles} = setup();
+  const saved = [];
+  manager.plugin.loadData = async () => ({});
+  manager.plugin.saveData = async data => {saved.push(JSON.parse(JSON.stringify(data)));};
+  manager.data.weeklyPlan = {'2026_33':350};
+  const save = () => Object.getPrototypeOf(manager).saveStatisticsData.call(manager);
+  await save();
+  await manager.updateWordCount('one two', 'existing.md');
+  await manager.updateWordCount('one two three', 'existing.md');
+  await save();
+  manager.data.weeklyPlan['2026_33'] = 420;
+  await manager.updateWordCount('one two three four', 'existing.md');
+  await save();
+  assert.equal(saved.at(-1).dayCounts['2026-11-23'],2);
+  assert.equal(JSON.parse(backupFiles.get('.obsidian/plugins/daily-statistics/statistics-history.json'))['2026-11-23'],2);
+  assert.equal(JSON.parse(backupFiles.get('.obsidian/plugins/daily-statistics/statistics-goals.json'))['2026_33'],420);
+});
+
+test('a partially written backup is recovered from its staged complete copy', async () => {
+  const {manager, backupFiles} = setup();
+  const path = '.obsidian/plugins/daily-statistics/statistics-history.json';
+  backupFiles.set(path, '{');
+  backupFiles.set(path+'.tmp', JSON.stringify({'2026-05-01':78}));
+  manager.plugin.loadData = async () => ({});
+  await manager.loadStatisticsData();
+  assert.equal(manager.data.dayCounts['2026-05-01'],78);
 });
 
 test('baseline, external edits and imports, exclusions, and repeated scans', async () => {

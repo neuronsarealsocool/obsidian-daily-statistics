@@ -41,43 +41,56 @@ export class DailyStatisticsDataManager {
   }
 
   private async loadHistory() {
-    const adapter = this.app.vault.adapter;
     const path = this.historyPath();
-    if (await adapter.exists(path)) {
-      const stored = JSON.parse(await adapter.read(path));
-      if (!stored || Array.isArray(stored) || typeof stored !== 'object') {
-        throw new Error('Invalid statistics history backup; refusing to overwrite it');
-      }
-      this.history = Object.fromEntries(Object.entries(stored)
-        .filter(([day, count]) => /^\d{4}-\d{2}-\d{2}$/.test(day) &&
-          typeof count === 'number' && Number.isFinite(count))) as Record<string, number>;
-      this.historyJson = JSON.stringify(this.history);
-    }
+    this.history = await this.readBackup(path, /^\d{4}-\d{2}-\d{2}$/) ?? this.history;
+    this.historyJson = "";
     this.data.dayCounts = {...this.history, ...this.data.dayCounts};
     const goalsPath = path.replace('statistics-history.json', 'statistics-goals.json');
-    if (await adapter.exists(goalsPath)) {
-      const stored = JSON.parse(await adapter.read(goalsPath));
-      if (!stored || Array.isArray(stored) || typeof stored !== 'object') {
-        throw new Error('Invalid statistics goals backup; refusing to overwrite it');
-      }
-      this.goalHistory = Object.fromEntries(Object.entries(stored)
-        .filter(([week, count]) => /^\d{4}_\d{1,2}$/.test(week) &&
-          typeof count === 'number' && Number.isFinite(count))) as Record<string, number>;
-      this.goalsJson = JSON.stringify(this.goalHistory);
-    }
+    this.goalHistory = await this.readBackup(goalsPath, /^\d{4}_\d{1,2}$/) ?? this.goalHistory;
+    this.goalsJson = "";
     this.data.weeklyPlan = {...this.goalHistory, ...this.data.weeklyPlan};
+  }
+
+  private async readBackup(path: string, keys: RegExp): Promise<Record<string, number> | undefined> {
+    const adapter = this.app.vault.adapter;
+    let failure: unknown;
+    for (const candidate of [path, `${path}.tmp`, `${path}.previous`]) {
+      if (!await adapter.exists(candidate)) continue;
+      try {
+        const stored = JSON.parse(await adapter.read(candidate));
+        if (!stored || Array.isArray(stored) || typeof stored !== 'object' ||
+          Object.entries(stored).some(([key, value]) => !keys.test(key) ||
+            typeof value !== 'number' || !Number.isFinite(value))) {
+          throw new Error(`Invalid statistics backup: ${candidate}`);
+        }
+        return stored;
+      } catch (error) { failure = error; }
+    }
+    if (failure) throw failure;
+  }
+
+  private async writeBackup(path: string, encoded: string) {
+    const adapter = this.app.vault.adapter;
+    await adapter.write(`${path}.tmp`, encoded);
+    if (await adapter.exists(path)) {
+      const previous = await adapter.read(path);
+      let valid = false;
+      try { const parsed = JSON.parse(previous); valid = !!parsed && !Array.isArray(parsed) && typeof parsed === 'object'; }
+      catch { /* Retain the existing previous copy when repairing a partial write. */ }
+      if (valid) await adapter.write(`${path}.previous`, previous);
+    }
+    // Adapter.rename refuses existing destinations. Keep staged and previous
+    // copies for recovery, then use the supported overwrite operation.
+    await adapter.write(path, encoded);
   }
 
   private async backupHistory() {
     this.historyWrites = this.historyWrites.catch(() => {}).then(async () => {
       const history = {...this.history, ...this.data.dayCounts};
       const encoded = JSON.stringify(history);
-      const adapter = this.app.vault.adapter;
       const path = this.historyPath();
-      // Save independently before data.json, using a complete temporary file.
       if (encoded !== this.historyJson) {
-        await adapter.write(`${path}.tmp`, encoded);
-        await adapter.rename(`${path}.tmp`, path);
+        await this.writeBackup(path, encoded);
         this.history = history;
         this.historyJson = encoded;
       }
@@ -85,8 +98,7 @@ export class DailyStatisticsDataManager {
       const goalsEncoded = JSON.stringify(goals);
       if (goalsEncoded !== this.goalsJson) {
         const goalsPath = path.replace('statistics-history.json', 'statistics-goals.json');
-        await adapter.write(`${goalsPath}.tmp`, goalsEncoded);
-        await adapter.rename(`${goalsPath}.tmp`, goalsPath);
+        await this.writeBackup(goalsPath, goalsEncoded);
         this.goalHistory = goals;
         this.goalsJson = goalsEncoded;
       }
