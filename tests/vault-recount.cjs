@@ -25,6 +25,7 @@ function setup() {
   });
   const manager = new exports.DailyStatisticsDataManager();
   const notes = new Map([['existing.md', 'one two'], ['Templates/base.md', 'ignored words']]);
+  const backupFiles = new Map();
   manager.today = date;
   manager.loadingData = true;
   manager.plugin = {
@@ -34,14 +35,58 @@ function setup() {
     stripDailyTotalWordCountText: (text) => text.replace(/<todaystotalwordcount>/g, ''),
   };
   manager.app = { vault: {
-    adapter: {exists: async()=>false},
+    adapter: {
+      exists: async(path)=>backupFiles.has(path),
+      read: async(path)=>backupFiles.get(path),
+      write: async(path,text)=>{backupFiles.set(path,text);},
+      rename: async(from,to)=>{backupFiles.set(to,backupFiles.get(from));backupFiles.delete(from);},
+    },
     getMarkdownFiles: () => [...notes.keys()].map((path) => ({ path })),
     read: async (file) => notes.get(file.path),
   } };
   let saves = 0;
   manager.saveStatisticsData = async () => { saves++; };
-  return { manager, notes, setDate: (value) => { date = value; }, saves: () => saves };
+  return { manager, notes, backupFiles, setDate: (value) => { date = value; }, saves: () => saves };
 }
+
+test('loading an existing empty ledger preserves all legacy calendar history', async () => {
+  const {manager} = setup();
+  const history = {'2026-05-01': 78, '2026-11-22': 42};
+  manager.plugin.loadData = async () => ({dayCounts: history,
+    offlineLedger: {schema:1,base:{},manual:{},snapshots:{},observations:[],mobile:{}}});
+  await manager.loadStatisticsData();
+  assert.equal(manager.data.dayCounts['2026-05-01'], 78);
+  assert.equal(manager.data.dayCounts['2026-11-22'], 42);
+  manager.updateCounts(false);
+  assert.equal(manager.data.offlineLedger.base['2026-05-01'], 78);
+});
+
+test('independent backup recovers dates after data.json is reset without doubling current totals', async () => {
+  const {manager, backupFiles} = setup();
+  manager.data.dayCounts = {'2026-05-01':78,'2026-11-22':42};
+  manager.plugin.loadData = async () => ({});
+  manager.plugin.saveData = async () => {};
+  await Object.getPrototypeOf(manager).saveStatisticsData.call(manager);
+  const backup = '.obsidian/plugins/daily-statistics/statistics-history.json';
+  assert.equal(JSON.parse(backupFiles.get(backup))['2026-05-01'],78);
+  manager.plugin.loadData = async () => ({dayCounts:{'2026-11-23':9},
+    offlineLedger:{schema:1,base:{'2026-11-23':9},manual:{},snapshots:{},observations:[],mobile:{}}});
+  await manager.loadStatisticsData();
+  assert.equal(manager.data.dayCounts['2026-05-01'],78);
+  assert.equal(manager.data.dayCounts['2026-11-22'],42);
+  assert.equal(manager.data.dayCounts['2026-11-23'],9);
+});
+
+test('failed independent backup prevents overwriting the primary statistics file', async () => {
+  const {manager} = setup();
+  let saved = false;
+  manager.data.dayCounts = {'2026-05-01':78};
+  manager.plugin.loadData = async () => ({});
+  manager.plugin.saveData = async () => {saved = true;};
+  manager.app.vault.adapter.write = async () => {throw new Error('disk unavailable');};
+  await Object.getPrototypeOf(manager).saveStatisticsData.call(manager);
+  assert.equal(saved,false);
+});
 
 test('baseline, external edits and imports, exclusions, and repeated scans', async () => {
   const { manager, notes, saves } = setup();

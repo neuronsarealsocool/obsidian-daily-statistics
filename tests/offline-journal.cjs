@@ -4,6 +4,16 @@ const {MobileJournalReader,parseMobileRecord}=load('mobile-journal');const {Stat
 const uuid=n=>'00000000-0000-4000-8000-'+String(n).padStart(12,'0');const device=uuid(999);
 function record(n,before,after,iso){const time=Date.parse(iso);return {schema:1,id:uuid(n),deviceId:device,path:'note.md',kind:'edit',previousContent:before,content:after,capturedAt:new Date(time+1000).toISOString(),modifiedAt:time,day:new Date(time+660*60000).toISOString().slice(0,10),offsetMinutes:660,basis:'file-mtime'};}
 const measure=text=>({hash:fingerprint(text),count:text.trim()?text.trim().split(/\s+/).length:0});
+test('recovering missing history preserves explicit zeroes and does not double ledger contributions',()=>{
+ const ledger=new StatisticsLedger(StatisticsLedger.create({'2026-11-24':0}),measure);
+ ledger.import([record(90,'one','one two','2026-11-25T00:00Z')],()=>true);
+ ledger.restoreMissingDays({'2026-05-01':78,'2026-11-24':10,'2026-11-25':1});
+ assert.equal(ledger.totals()['2026-05-01'],78);
+ assert.equal(ledger.totals()['2026-11-24'],0);
+ assert.equal(ledger.totals()['2026-11-25'],1);
+ ledger.restoreMissingDays(ledger.totals());
+ assert.equal(ledger.totals()['2026-11-25'],1);
+});
 test('late and out-of-order journal corrects desktop estimate without double counting, even with partial chains',()=>{
  const state=StatisticsLedger.create({'2026-11-20':42});const ledger=new StatisticsLedger(state,measure);
  ledger.observe('note.md','one',Date.parse('2026-11-23T00:00Z'),'baseline');

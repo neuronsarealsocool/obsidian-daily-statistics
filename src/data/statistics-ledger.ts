@@ -15,6 +15,14 @@ export function localDay(time: number): string {
 export class StatisticsLedger {
   constructor(public state: LedgerState, private measure: (text: string) => {hash: string; count: number}) {}
   static create(base: Record<string, number>): LedgerState {return {schema: 1, base: {...base}, manual: {}, snapshots: {}, observations: [], mobile: {}};}
+  restoreMissingDays(history: Record<string, number>): void {
+    const totals = this.totals();
+    for (const [day, count] of Object.entries(history)) {
+      if (!(day in totals) && /^\d{4}-\d{2}-\d{2}$/.test(day) && Number.isFinite(count)) {
+        this.state.base[day] = count;
+      }
+    }
+  }
   observe(path: string, text: string, time: number, basis: string, legacy?: number): void {
     const current = this.measure(text), old = this.state.snapshots[path];
     if (old?.hash === current.hash) return;

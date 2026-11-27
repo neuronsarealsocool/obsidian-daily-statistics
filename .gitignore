@@ -20,6 +20,7 @@ data.json
 data.backup.json
 data.restored-*.json
 statistics-data.json
+statistics-history.json*
 
 # Exclude macOS Finder (System Explorer) View States
 .DS_Store

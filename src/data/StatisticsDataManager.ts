@@ -29,6 +29,46 @@ export class DailyStatisticsDataManager {
   private mobileReader?: MobileJournalReader;
   private ledgerReady = false;
   private legacyCounts: Record<string, number> = {};
+  private history: Record<string, number> = {};
+  private historyJson = "";
+  private historyWrites: Promise<void> = Promise.resolve();
+
+  private historyPath() {
+    const dir = this.plugin.manifest?.dir ?? `${this.app.vault.configDir ?? '.obsidian'}/plugins/daily-statistics`;
+    return `${dir}/statistics-history.json`;
+  }
+
+  private async loadHistory() {
+    const adapter = this.app.vault.adapter;
+    const path = this.historyPath();
+    if (await adapter.exists(path)) {
+      const stored = JSON.parse(await adapter.read(path));
+      if (!stored || Array.isArray(stored) || typeof stored !== 'object') {
+        throw new Error('Invalid statistics history backup; refusing to overwrite it');
+      }
+      this.history = Object.fromEntries(Object.entries(stored)
+        .filter(([day, count]) => /^\d{4}-\d{2}-\d{2}$/.test(day) &&
+          typeof count === 'number' && Number.isFinite(count))) as Record<string, number>;
+      this.historyJson = JSON.stringify(this.history);
+    }
+    this.data.dayCounts = {...this.history, ...this.data.dayCounts};
+  }
+
+  private async backupHistory() {
+    this.historyWrites = this.historyWrites.catch(() => {}).then(async () => {
+      const history = {...this.history, ...this.data.dayCounts};
+      const encoded = JSON.stringify(history);
+      if (encoded === this.historyJson) return;
+      const adapter = this.app.vault.adapter;
+      const path = this.historyPath();
+      // Save independently before data.json, using a complete temporary file.
+      await adapter.write(`${path}.tmp`, encoded);
+      await adapter.rename(`${path}.tmp`, path);
+      this.history = history;
+      this.historyJson = encoded;
+    });
+    await this.historyWrites;
+  }
   private ledger() {return new StatisticsLedger(this.data.offlineLedger!, text => {
     const clean = this.stripFrontmatter(this.plugin.stripDailyTotalWordCountText(text));
     return {hash: fingerprint(clean), count: this.getWordCount(clean)};
@@ -108,6 +148,7 @@ export class DailyStatisticsDataManager {
       // console.log("loadStatisticsData, data is " + JSON.stringify(this.data));
     }
 
+    await this.loadHistory();
     if (!this.data.offlineLedger) {
       this.legacyCounts = Object.fromEntries(Object.entries(this.data.todayWordCount || {}).map(([p, c]) => [p, c.current]));
       const older = (this.data as any).vaultLatestWordCounts;
@@ -185,6 +226,7 @@ export class DailyStatisticsDataManager {
       }
       this.ensureCountingDate();
       this.updateCounts(false);
+      await this.backupHistory();
       if (this.filePath != null && this.filePath != "") {
         if (this.file == null) {
           this.file = await this.app.vault.create(
@@ -415,6 +457,7 @@ export class DailyStatisticsDataManager {
   updateCounts(save = true) {
     this.ensureCountingDate();
     if (this.data.offlineLedger) {
+      this.ledger().restoreMissingDays(this.data.dayCounts);
       this.data.dayCounts = this.ledger().totals();
       this.currentWordCount = this.data.dayCounts[this.today] ?? 0;
       if (save) void this.saveStatisticsData();
