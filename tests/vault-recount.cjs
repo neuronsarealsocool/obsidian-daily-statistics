@@ -88,6 +88,21 @@ test('failed independent backup prevents overwriting the primary statistics file
   assert.equal(saved,false);
 });
 
+test('goal backup restores missing targets and preserves intentional zero or changed goals', async () => {
+  const {manager, backupFiles} = setup();
+  manager.data.weeklyPlan = {'2026_33':350,'2026_40':420,'2026_41':350};
+  manager.plugin.loadData = async () => ({});
+  manager.plugin.saveData = async () => {};
+  await Object.getPrototypeOf(manager).saveStatisticsData.call(manager);
+  const backup = '.obsidian/plugins/daily-statistics/statistics-goals.json';
+  assert.equal(JSON.parse(backupFiles.get(backup))['2026_33'],350);
+  manager.plugin.loadData = async () => ({weeklyPlan:{'2026_40':0,'2026_41':700}});
+  await manager.loadStatisticsData();
+  assert.equal(manager.data.weeklyPlan['2026_33'],350);
+  assert.equal(manager.data.weeklyPlan['2026_40'],0);
+  assert.equal(manager.data.weeklyPlan['2026_41'],700);
+});
+
 test('baseline, external edits and imports, exclusions, and repeated scans', async () => {
   const { manager, notes, saves } = setup();
   manager.data.dayCounts['2026-11-22'] = 120;

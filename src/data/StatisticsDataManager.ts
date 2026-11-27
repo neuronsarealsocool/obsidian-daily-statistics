@@ -31,6 +31,8 @@ export class DailyStatisticsDataManager {
   private legacyCounts: Record<string, number> = {};
   private history: Record<string, number> = {};
   private historyJson = "";
+  private goalHistory: Record<string, number> = {};
+  private goalsJson = "";
   private historyWrites: Promise<void> = Promise.resolve();
 
   private historyPath() {
@@ -52,20 +54,42 @@ export class DailyStatisticsDataManager {
       this.historyJson = JSON.stringify(this.history);
     }
     this.data.dayCounts = {...this.history, ...this.data.dayCounts};
+    const goalsPath = path.replace('statistics-history.json', 'statistics-goals.json');
+    if (await adapter.exists(goalsPath)) {
+      const stored = JSON.parse(await adapter.read(goalsPath));
+      if (!stored || Array.isArray(stored) || typeof stored !== 'object') {
+        throw new Error('Invalid statistics goals backup; refusing to overwrite it');
+      }
+      this.goalHistory = Object.fromEntries(Object.entries(stored)
+        .filter(([week, count]) => /^\d{4}_\d{1,2}$/.test(week) &&
+          typeof count === 'number' && Number.isFinite(count))) as Record<string, number>;
+      this.goalsJson = JSON.stringify(this.goalHistory);
+    }
+    this.data.weeklyPlan = {...this.goalHistory, ...this.data.weeklyPlan};
   }
 
   private async backupHistory() {
     this.historyWrites = this.historyWrites.catch(() => {}).then(async () => {
       const history = {...this.history, ...this.data.dayCounts};
       const encoded = JSON.stringify(history);
-      if (encoded === this.historyJson) return;
       const adapter = this.app.vault.adapter;
       const path = this.historyPath();
       // Save independently before data.json, using a complete temporary file.
-      await adapter.write(`${path}.tmp`, encoded);
-      await adapter.rename(`${path}.tmp`, path);
-      this.history = history;
-      this.historyJson = encoded;
+      if (encoded !== this.historyJson) {
+        await adapter.write(`${path}.tmp`, encoded);
+        await adapter.rename(`${path}.tmp`, path);
+        this.history = history;
+        this.historyJson = encoded;
+      }
+      const goals = {...this.goalHistory, ...this.data.weeklyPlan};
+      const goalsEncoded = JSON.stringify(goals);
+      if (goalsEncoded !== this.goalsJson) {
+        const goalsPath = path.replace('statistics-history.json', 'statistics-goals.json');
+        await adapter.write(`${goalsPath}.tmp`, goalsEncoded);
+        await adapter.rename(`${goalsPath}.tmp`, goalsPath);
+        this.goalHistory = goals;
+        this.goalsJson = goalsEncoded;
+      }
     });
     await this.historyWrites;
   }
